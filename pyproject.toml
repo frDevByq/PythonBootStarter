@@ -1,0 +1,10 @@
+[project]
+name = "pythonboot-starters"
+version = "0.1.0"
+description = "PythonBoot starter workspace"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.workspace]
+members = ["starters/*"]

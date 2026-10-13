@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pythonboot-starter-web"
+version = "0.1.0"
+description = "Web starter dependencies for PythonBoot applications"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pythonboot>=0.1.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pythonboot_starter_web"]
