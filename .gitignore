@@ -36,6 +36,11 @@ env/
 coverage.xml
 htmlcov/
 
+# Node.js and VitePress generated files
+node_modules/
+viteDocs/docs/.vitepress/cache/
+viteDocs/docs/.vitepress/dist/
+
 # IDE and OS
 .idea/
 .vscode/

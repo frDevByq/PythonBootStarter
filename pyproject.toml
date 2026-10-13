@@ -7,4 +7,8 @@ requires-python = ">=3.12"
 dependencies = []
 
 [tool.uv.workspace]
-members = ["starters/*"]
+members = ["starters/*", "modules/*"]
+
+[tool.uv.sources]
+pythonboot = { path = "../PythonBoot", editable = true }
+pythonboot-web = { workspace = true }

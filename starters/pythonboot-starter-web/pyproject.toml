@@ -9,7 +9,7 @@ description = "Web starter dependencies for PythonBoot applications"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "pythonboot>=0.1.0",
+    "pythonboot-web>=0.1.0,<0.2",
 ]
 
 [tool.hatch.build.targets.wheel]

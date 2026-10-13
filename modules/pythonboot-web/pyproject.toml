@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pythonboot-web"
+version = "0.1.0"
+description = "FastAPI integration and Web application startup for PythonBoot"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pythonboot>=0.1.0,<0.2",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.34,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pythonboot_web"]
