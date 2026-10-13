@@ -2,6 +2,12 @@ import { defineConfig } from 'vitepress'
 
 const zhSidebar = [
   { text: '开始使用', items: [{ text: '概览', link: '/zh/index.html' }] },
+  { text: 'Redis Starter', items: [
+    { text: '客户端、工具与分布式锁', link: '/zh/redis.html' },
+  ] },
+  { text: 'SQLAlchemy Starter', items: [
+    { text: '配置、Session 与显式提交', link: '/zh/sqlalchemy.html' },
+  ] },
   { text: 'Web Starter', items: [
     { text: '安装与模块拆分', link: '/zh/web-starter.html' },
     { text: '应用与扫描', link: '/zh/application.html' },
@@ -12,6 +18,12 @@ const zhSidebar = [
 
 const enSidebar = [
   { text: 'Getting started', items: [{ text: 'Overview', link: '/en/index.html' }] },
+  { text: 'Redis Starter', items: [
+    { text: 'Clients, utilities and distributed locks', link: '/en/redis.html' },
+  ] },
+  { text: 'SQLAlchemy Starter', items: [
+    { text: 'Configuration, Sessions and explicit commits', link: '/en/sqlalchemy.html' },
+  ] },
   { text: 'Web Starter', items: [
     { text: 'Installation and modules', link: '/en/web-starter.html' },
     { text: 'Application and scanning', link: '/en/application.html' },

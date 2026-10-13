@@ -12,3 +12,5 @@ members = ["starters/*", "modules/*"]
 [tool.uv.sources]
 pythonboot = { path = "../PythonBoot", editable = true }
 pythonboot-web = { workspace = true }
+pythonboot-sqlalchemy = { workspace = true }
+pythonboot-redis = { workspace = true }

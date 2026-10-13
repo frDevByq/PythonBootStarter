@@ -30,11 +30,29 @@ PythonBootStarter/
       pyproject.toml                     独立发布元数据及运行时依赖
       README.md                          模块说明及用法
       src/pythonboot_web/                Web 集成与启动实现
+    pythonboot-sqlalchemy/
+      pyproject.toml                     SQLAlchemy 实现包依赖和自动配置入口
+      README.md                          配置与原生 ORM 用法
+      src/pythonboot_sqlalchemy/         Engine、Session 工厂和配置属性
+    pythonboot-redis/
+      pyproject.toml                     redis-py 依赖和自动配置入口
+      README.md                          原生客户端、静态工具和锁用法
+      src/pythonboot_redis/              客户端配置、同步／异步工具和生命周期
   starters/                              用户安装的启动依赖聚合包
     pythonboot-starter-web/
       pyproject.toml                     独立发布元数据及聚合依赖
       README.md                          安装方式及入口说明
       src/pythonboot_starter_web/        必要的公共启动接口导出
+    pythonboot-starter-sqlalchemy/
+      pyproject.toml                     ORM 启动依赖聚合
+      README.md                          安装和入口说明
+      src/pythonboot_starter_sqlalchemy/ 公共工厂和配置类型导出
+    pythonboot-starter-redis/
+      pyproject.toml                     Redis 启动依赖聚合
+      README.md                          安装和入口说明
+      src/pythonboot_starter_redis/      公共客户端、配置和工具导出
+  examples/sqlalchemy/                  原生 ORM 显式提交示例
+  examples/redis/                       客户端注入、静态工具和分布式锁示例
   README.md                              仓库结构及工作区使用说明
   AGENTS.md                              本规范
   viteDocs/                              所有 Starter 的统一中英文文档站
@@ -66,6 +84,20 @@ Python 版本要求：>=3.12。使用 UV 管理依赖；各项目的 `pyproject.
 | pythonboot-web | 构建 | hatchling | >=1.27,<2 | 构建 src 布局的软件包 |
 | pythonboot-starter-web | 运行时 | pythonboot-web | >=0.1.0,<0.2 | 聚合 Web 实现及其传递依赖 |
 | pythonboot-starter-web | 构建 | hatchling | >=1.27,<2 | 构建独立 Starter 分发包 |
+| pythonboot-sqlalchemy | 运行时 | pythonboot | >=0.1.0,<0.2 | 容器、配置属性、自动配置和生命周期 |
+| pythonboot-sqlalchemy | 运行时 | sqlalchemy[asyncio] | >=2.0.38,<3 | 原生同步／异步 ORM、Engine、Session 工厂与 asyncio 所需 greenlet |
+| pythonboot-sqlalchemy | 运行时 | pydantic | >=2.10,<3 | 嵌套配置类型和参数校验 |
+| pythonboot-sqlalchemy | 运行时 | pydantic-settings | >=2.7,<3 | 配置属性和环境变量覆盖 |
+| pythonboot-sqlalchemy | 构建 | hatchling | >=1.27,<2 | 构建 src 布局的 ORM 实现包 |
+| pythonboot-starter-sqlalchemy | 运行时 | pythonboot-sqlalchemy | >=0.1.0,<0.2 | 聚合 ORM 实现与传递依赖 |
+| pythonboot-starter-sqlalchemy | 构建 | hatchling | >=1.27,<2 | 构建独立 ORM Starter 分发包 |
+| pythonboot-redis | 运行时 | pythonboot | >=0.1.0,<0.2 | 容器、配置属性、ContextUtil 和资源生命周期 |
+| pythonboot-redis | 运行时 | redis | >=5.0,<8 | redis-py 同步／异步客户端、连接池和原生分布式锁 |
+| pythonboot-redis | 运行时 | pydantic | >=2.10,<3 | 参数校验和 SecretStr 密码保护 |
+| pythonboot-redis | 运行时 | pydantic-settings | >=2.7,<3 | Redis 配置属性和环境变量覆盖 |
+| pythonboot-redis | 构建 | hatchling | >=1.27,<2 | 构建 src 布局的 Redis 实现包 |
+| pythonboot-starter-redis | 运行时 | pythonboot-redis | >=0.1.0,<0.2 | 聚合 Redis 实现与传递依赖 |
+| pythonboot-starter-redis | 构建 | hatchling | >=1.27,<2 | 构建独立 Redis Starter 分发包 |
 
 - 新增、删除、升级依赖或变更 extras、依赖组时，在同一次修改中更新对应
   `pyproject.toml`、本文件的清单和用途说明。
@@ -122,7 +154,27 @@ Python 版本要求：>=3.12。使用 UV 管理依赖；各项目的 `pyproject.
   成功响应使用 `ResponseCode.SUCCESS`（200）及“操作成功”，
   失败响应使用 `ResponseCode.FAILURE`（500）及传入的失败消息。
 
+## Redis 模块约定
+
+- `RedisClient` / `AsyncRedisClient` 是 redis-py 原生客户端类别名，不实现 RedisTemplate。
+- 默认同步模式；enabled 和 mode 通过 YAML 选择，其他属性允许环境变量覆盖。
+- `RedisUtil` / `AsyncRedisUtil` 通过 ContextUtil 获取当前容器客户端，不缓存全局客户端。
+  独立任务必须绑定容器；多客户端通过名称、限定符或 primary 选择，歧义明确报错。
+- 默认池与客户端接入容器关闭，异步清理必须 await；自定义资源由提供方声明关闭责任。
+- 创建对象不连接 Redis，不在导入时探活、安装或执行命令；异常不静默降级。
+- 分布式锁使用 redis-py 原生令牌与 Lua 释放／续期，不通过直接删除键解锁。
+  每个并发作用域独立创建锁对象，设置有限租期与等待，成功获取后在 finally 中释放。
+- 不提供自动续期或跨故障转移严格互斥；显式续期，不吞掉丢失所有权异常。
+
 ## 自动配置与事务适配
+
+- 当前 SQLAlchemy Starter 采用原生 ORM 和显式提交，不提供 Mapper 或核心事务管理器适配。
+  业务注入原生 Session 工厂并创建作用域，显式调用 commit，需要复用失败 Session 时 rollback。
+- Session 不注册为共享单例，不自动绑定 HTTP 请求或业务方法；并发任务不得共享 Session。
+- 数据库驱动由应用声明，URL 由 SQLAlchemy 解析；不维护驱动映射、不自动建表或迁移。
+- 默认 Engine 通过 dispose 接入容器关闭；自定义 Engine 和外部连接池的关闭由提供方声明。
+- SQLAlchemy 的 enabled 和 mode 由 YAML 自动配置条件选择，其他配置属性支持环境变量覆盖。
+- 未来新增核心事务管理器适配时，再遵守下述传播、隔离和 rollback-only 契约。
 
 - 自动配置通过 `pythonboot.autoconfigure` entry points 注册，入口为
   `@auto_configuration` 类或包含这些类的模块，不扫描第三方依赖包全目录。

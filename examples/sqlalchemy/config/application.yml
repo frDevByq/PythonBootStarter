@@ -1,0 +1,8 @@
+pythonboot:
+  datasource:
+    url: sqlite+aiosqlite:///./example.db
+  sqlalchemy:
+    mode: async
+    session:
+      expire_on_commit: false
+      autoflush: true

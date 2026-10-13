@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pythonboot-redis"
+version = "0.1.0"
+description = "Native redis-py clients, utilities and distributed locks for PythonBoot"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pythonboot>=0.1.0,<0.2",
+    "redis>=5.0,<8",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+]
+
+[project.entry-points."pythonboot.autoconfigure"]
+redis = "pythonboot_redis.configuration"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pythonboot_redis"]

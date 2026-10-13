@@ -1,0 +1,14 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pythonboot-starter-redis"
+version = "0.1.0"
+description = "Redis starter dependencies for PythonBoot applications"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["pythonboot-redis>=0.1.0,<0.2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pythonboot_starter_redis"]

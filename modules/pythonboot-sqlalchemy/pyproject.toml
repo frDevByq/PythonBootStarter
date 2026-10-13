@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pythonboot-sqlalchemy"
+version = "0.1.0"
+description = "Native SQLAlchemy ORM configuration and lifecycle integration for PythonBoot"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pythonboot>=0.1.0,<0.2",
+    "sqlalchemy[asyncio]>=2.0.38,<3",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+]
+
+[project.entry-points."pythonboot.autoconfigure"]
+sqlalchemy = "pythonboot_sqlalchemy.configuration"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pythonboot_sqlalchemy"]
