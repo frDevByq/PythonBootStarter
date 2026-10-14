@@ -216,4 +216,3 @@ their redis-py modules. Repository `examples/redis/` demonstrates async client i
 List commands, and distributed locks through a Web application.
 
 
-[Complete Starter application](./example.md): all Starters, PostgreSQL/Redis, layered application structure, and sync/async HTTP examples.

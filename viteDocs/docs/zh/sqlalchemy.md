@@ -247,7 +247,6 @@ class OrderDatabaseConfiguration:
 Service 属性注入、查询 DTO 和显式提交；数据库结构需应用自己准备。
 
 
-[全量 Starter 示例工程](./example.md)：所有 Starter 的标准分层应用、PostgreSQL／Redis 和同步／异步 HTTP 演示。
 
 
 ## 分页查询

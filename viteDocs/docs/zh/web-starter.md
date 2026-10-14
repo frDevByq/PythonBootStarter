@@ -43,4 +43,3 @@ app = Application().app
 Starter 工作区使用 `uv sync --all-packages`。UV sources 的本地路径不进入发布依赖。
 
 
-[全量 Starter 示例工程](./example.md)：所有 Starter 的标准分层应用、PostgreSQL／Redis 和同步／异步 HTTP 演示。

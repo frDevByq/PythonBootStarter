@@ -44,4 +44,3 @@ For local development, keep the core and Starter repositories as sibling directo
 Local UV source paths do not enter published dependencies.
 
 
-[Complete Starter application](./example.md): all Starters, PostgreSQL/Redis, layered application structure, and sync/async HTTP examples.

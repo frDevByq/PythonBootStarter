@@ -22,4 +22,3 @@ uv add pythonboot-starter-web
 Start with [Installation and modules](/en/web-starter.html).
 
 
-[Complete Starter application](./example.md): all Starters, PostgreSQL/Redis, layered application structure, and sync/async HTTP examples.

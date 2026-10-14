@@ -251,7 +251,6 @@ Repository `examples/sqlalchemy/` includes async SQLite configuration, ORM model
 injection, materialized query DTOs, and explicit commits. Applications prepare the schema themselves.
 
 
-[Complete Starter application](./example.md): all Starters, PostgreSQL/Redis, layered application structure, and sync/async HTTP examples.
 
 
 ## Pagination
