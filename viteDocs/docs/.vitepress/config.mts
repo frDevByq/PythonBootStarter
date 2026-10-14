@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress'
 
 const zhSidebar = [
-  { text: '开始使用', items: [{ text: '概览', link: '/zh/index.html' }, { text: '全量示例工程', link: '/zh/example.html' }] },
+  { text: '开始使用', items: [{ text: '概览', link: '/zh/index.html' }] },
   { text: 'Redis Starter', items: [
     { text: '客户端、工具与分布式锁', link: '/zh/redis.html' },
   ] },
@@ -18,7 +18,7 @@ const zhSidebar = [
 ]
 
 const enSidebar = [
-  { text: 'Getting started', items: [{ text: 'Overview', link: '/en/index.html' }, { text: 'Complete example', link: '/en/example.html' }] },
+  { text: 'Getting started', items: [{ text: 'Overview', link: '/en/index.html' }] },
   { text: 'Redis Starter', items: [
     { text: 'Clients, utilities and distributed locks', link: '/en/redis.html' },
   ] },

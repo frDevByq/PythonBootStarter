@@ -1,11 +1,15 @@
 """Conditional native Redis clients and application-owned pool lifecycle."""
 
+import logging
+
 from redis import ConnectionPool
 from redis.asyncio import ConnectionPool as AsyncConnectionPool
 
 from pythonboot import auto_configuration, bean, conditional_on_missing_bean, conditional_on_property
 from pythonboot_redis.client import AsyncRedisClient, RedisClient
 from pythonboot_redis.properties import RedisProperties
+
+logger = logging.getLogger(__name__)
 
 
 @auto_configuration(order=2900, imports=(RedisProperties,))
@@ -23,6 +27,7 @@ class RedisSyncPoolAutoConfiguration:
     @bean(name="redisConnectionPool", destroy_method="disconnect")
     @conditional_on_missing_bean(ConnectionPool, RedisClient, "redisConnectionPool", "redisClient")
     def connection_pool(self, properties: RedisProperties) -> ConnectionPool:
+        logger.info("Creating synchronous Redis connection pool with max_connections=%d.", properties.max_connections)
         return ConnectionPool.from_url(properties.connection_url("sync"), **properties.connection_options())
 
 
@@ -37,6 +42,7 @@ class RedisAsyncPoolAutoConfiguration:
         AsyncConnectionPool, AsyncRedisClient, "redisAsyncConnectionPool", "redisAsyncClient",
     )
     def connection_pool(self, properties: RedisProperties) -> AsyncConnectionPool:
+        logger.info("Creating asynchronous Redis connection pool with max_connections=%d.", properties.max_connections)
         return AsyncConnectionPool.from_url(properties.connection_url("async"), **properties.connection_options())
 
 
@@ -49,6 +55,7 @@ class RedisSyncClientAutoConfiguration:
     @bean(name="redisClient", destroy_method="close")
     @conditional_on_missing_bean(RedisClient, "redisClient")
     def client(self, pool: ConnectionPool) -> RedisClient:
+        logger.info("Creating synchronous Redis client from the managed connection pool.")
         return RedisClient(connection_pool=pool)
 
 
@@ -61,4 +68,5 @@ class RedisAsyncClientAutoConfiguration:
     @bean(name="redisAsyncClient", destroy_method="aclose")
     @conditional_on_missing_bean(AsyncRedisClient, "redisAsyncClient")
     def client(self, pool: AsyncConnectionPool) -> AsyncRedisClient:
+        logger.info("Creating asynchronous Redis client from the managed connection pool.")
         return AsyncRedisClient(connection_pool=pool)

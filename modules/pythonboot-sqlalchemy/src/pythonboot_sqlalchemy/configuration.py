@@ -1,5 +1,7 @@
 """Register native engines and session factories without implicit commits."""
 
+import logging
+
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
@@ -9,6 +11,8 @@ from pythonboot import (
 from pythonboot_sqlalchemy.engine import database_url, engine_options
 from pythonboot_sqlalchemy.factories import AsyncSessionFactory, SessionFactory
 from pythonboot_sqlalchemy.properties import DataSourceProperties, SqlAlchemyProperties
+
+logger = logging.getLogger(__name__)
 
 
 @auto_configuration(order=1900, imports=(DataSourceProperties, SqlAlchemyProperties))
@@ -28,6 +32,7 @@ class SqlAlchemySyncEngineAutoConfiguration:
     def engine(self, properties: DataSourceProperties, orm: SqlAlchemyProperties) -> Engine:
         if not orm.enabled or orm.mode != "sync":
             raise ValueError("SQLAlchemy enabled and mode must be selected in application YAML")
+        logger.info("Creating synchronous SQLAlchemy engine with pool_kind=%s.", properties.pool.kind)
         return create_engine(database_url(properties), **engine_options(properties, asynchronous=False))
 
 
@@ -42,6 +47,7 @@ class SqlAlchemyAsyncEngineAutoConfiguration:
     def engine(self, properties: DataSourceProperties, orm: SqlAlchemyProperties) -> AsyncEngine:
         if not orm.enabled or orm.mode != "async":
             raise ValueError("SQLAlchemy enabled and mode must be selected in application YAML")
+        logger.info("Creating asynchronous SQLAlchemy engine with pool_kind=%s.", properties.pool.kind)
         return create_async_engine(database_url(properties), **engine_options(properties, asynchronous=True))
 
 
@@ -54,6 +60,7 @@ class SqlAlchemySyncSessionAutoConfiguration:
     @bean(name="sqlAlchemySessionFactory")
     @conditional_on_missing_bean(SessionFactory, "sqlAlchemySessionFactory")
     def session_factory(self, engine: Engine, properties: SqlAlchemyProperties) -> SessionFactory:
+        logger.info("Creating synchronous SQLAlchemy session factory.")
         return SessionFactory(bind=engine, **properties.session.model_dump())
 
 
@@ -66,4 +73,5 @@ class SqlAlchemyAsyncSessionAutoConfiguration:
     @bean(name="sqlAlchemyAsyncSessionFactory")
     @conditional_on_missing_bean(AsyncSessionFactory, "sqlAlchemyAsyncSessionFactory")
     def session_factory(self, engine: AsyncEngine, properties: SqlAlchemyProperties) -> AsyncSessionFactory:
+        logger.info("Creating asynchronous SQLAlchemy session factory.")
         return AsyncSessionFactory(bind=engine, **properties.session.model_dump())

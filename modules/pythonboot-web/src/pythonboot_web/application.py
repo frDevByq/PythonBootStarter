@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import logging
 import sys
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,8 @@ from pythonboot_web import (
     ApplicationContextMiddleware, DateTimeFormatMiddleware, register_api_docs, register_exception_handlers,
     register_routers, resolve_datetime_format, resolve_docs_options,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def create_app(
@@ -37,6 +40,7 @@ def create_app(
     result = scan_components(
         tuple(scan_packages), exclude_modules=exclude_modules, exclude=excluded_classes,
     )
+    logger.info("Scanned %d component definitions from %d modules.", len(result.definitions), len(result.modules))
     configuration = load_configuration(config_dir) if config_dir is not None else {}
     configure_logging(configuration)
     docs_options = resolve_docs_options(configuration)
@@ -47,6 +51,9 @@ def create_app(
             definitions, result.modules, configuration, exclude=exclude_auto_configurations,
             exclude_classes=excluded_classes,
         )
+        logger.info("Auto-configuration assembled %d bean definitions.", len(definitions))
+    else:
+        logger.info("Auto-configuration is disabled.")
     context = ApplicationContext(definitions, configuration=configuration)
     fastapi_options = {
         **options,
@@ -61,11 +68,13 @@ def create_app(
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[Any]:
         with ContextUtil.use(context):
+            logger.info("Starting application context.")
             await context.start()
             try:
                 async with native_lifespan(application) as state:
                     yield state
             finally:
+                logger.info("Closing application context.")
                 await context.close()
 
     app.router.lifespan_context = lifespan
@@ -76,6 +85,7 @@ def create_app(
         app, result.modules, exclude=excluded_classes, date_time_format=date_time_format,
     )
     register_exception_handlers(app, result.modules, exclude=excluded_classes)
+    logger.info("Created FastAPI application '%s' version %s.", title, version)
     return app
 
 
@@ -137,4 +147,5 @@ class PythonBootApplication:
         log_level: str = "info",
     ) -> None:
         """Start the application; use a Uvicorn module entry for reload or multiple workers."""
+        logger.info("Starting Uvicorn server on %s:%d.", host, port)
         uvicorn.run(self.app, host=host, port=port, log_level=log_level)
