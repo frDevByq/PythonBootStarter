@@ -246,6 +246,54 @@ and explicitly register each Engine/factory pair when using multiple sources.
 
 `pythonboot_sqlalchemy` and `pythonboot_starter_sqlalchemy` explicitly export `SessionFactory`,
 `AsyncSessionFactory`, `DataSourceProperties`, `SqlAlchemyProperties`, `PoolProperties`, and
-`SessionProperties`. Import Engine, Session, models, and expressions from SQLAlchemy itself.
+`SessionProperties`, `PageQuery`, `Page`, `paginate`, and `apaginate`. Import Engine, Session, models, and expressions from SQLAlchemy itself.
 Repository `examples/sqlalchemy/` includes async SQLite configuration, ORM models, Service attribute
 injection, materialized query DTOs, and explicit commits. Applications prepare the schema themselves.
+
+
+[Complete Starter application](./example.md): all Starters, PostgreSQL/Redis, layered application structure, and sync/async HTTP examples.
+
+
+## Pagination
+
+`PageQuery` has `page` (default 1) and `pageSize` (default 10), both at least 1.
+`Page[T]` adds `total` (default 0) and `rows: list[T]` (an independent empty list by default).
+Python attributes and JSON use the exact field name `pageSize`.
+
+Import both models and the sync `paginate` / async `apaginate` helpers from
+`pythonboot_sqlalchemy` or `pythonboot_starter_sqlalchemy`. Implementation belongs to the module;
+the Starter only re-exports public interfaces. No dependency is added.
+
+```python
+from sqlalchemy import select
+from pythonboot_starter_sqlalchemy import Page, PageQuery, paginate, apaginate
+
+query = PageQuery(page=1, pageSize=10)
+statement = select(User).where(User.name == "Alice").order_by(User.id)
+
+with session_factory() as session:
+    page = paginate(session, statement, query, mapper=UserView.model_validate)
+
+async with async_session_factory() as session:
+    page = await apaginate(session, statement, query, mapper=UserView.model_validate)
+```
+
+Omit `query` to use defaults. The optional `mapper` materializes DTOs within the Session;
+otherwise rows retain native entities or scalar values. Load required attributes before closing.
+
+A COUNT subquery measures the full selection, and an OFFSET/LIMIT query loads the page.
+Filters, joins, DISTINCT, GROUP BY, and HAVING are preserved. Count removes ordering; rows retain it.
+Existing LIMIT/OFFSET/FETCH clauses are replaced by pagination. The original Select is not mutated.
+Empty and out-of-range pages keep the full matching `total`, return empty `rows`, and retain the
+requested page number. Order by a unique key for stable paging.
+
+Select exactly one ORM entity or scalar column; multi-column/entity statements raise an error.
+Totals count SQL result rows, including duplicate join rows; use explicit DISTINCT when needed.
+Collection joined eager loading requiring `.unique()` is outside this helper's scope; use `selectinload`.
+Count and rows execute sequentially as two queries; concurrent-write consistency depends on the
+caller's transaction isolation. Helpers do not create, close, commit, or roll back Sessions.
+Never share an AsyncSession between concurrent tasks.
+
+The complete application exposes `GET /users/page` and `GET /sync/users/page`, accepting
+`page`, `pageSize`, and optional `name`, and returning `BaseResult[Page[UserView]]`.
+Existing list endpoints remain available.

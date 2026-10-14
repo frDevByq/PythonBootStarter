@@ -242,6 +242,50 @@ class OrderDatabaseConfiguration:
 
 `pythonboot_sqlalchemy` 和 `pythonboot_starter_sqlalchemy` 显式导出
 `SessionFactory`、`AsyncSessionFactory`、`DataSourceProperties`、`SqlAlchemyProperties`、
-`PoolProperties` 和 `SessionProperties`。Engine、Session、模型和查询表达式从 SQLAlchemy 导入。
+`PoolProperties`、`SessionProperties`、`PageQuery`、`Page`、`paginate` 和 `apaginate`。Engine、Session、模型和查询表达式从 SQLAlchemy 导入。
 完整示例位于仓库 `examples/sqlalchemy/`，包含 SQLite 异步配置、ORM 模型、
 Service 属性注入、查询 DTO 和显式提交；数据库结构需应用自己准备。
+
+
+[全量 Starter 示例工程](./example.md)：所有 Starter 的标准分层应用、PostgreSQL／Redis 和同步／异步 HTTP 演示。
+
+
+## 分页查询
+
+`PageQuery` 包含 `page`（默认 1）和 `pageSize`（默认 10），二者必须大于等于 1。
+`Page[T]` 包含相同分页参数，以及 `total`（默认 0）和 `rows: list[T]`（默认空列表）。
+Python 属性与 JSON 字段均使用 `pageSize`，不需要别名转换。
+
+从 `pythonboot_sqlalchemy` 或 `pythonboot_starter_sqlalchemy` 导入这两个模型，以及
+同步 `paginate`、异步 `apaginate`。实现位于实现模块，Starter 只导出公共入口，无新增依赖。
+
+```python
+from sqlalchemy import select
+from pythonboot_starter_sqlalchemy import Page, PageQuery, paginate, apaginate
+
+query = PageQuery(page=1, pageSize=10)
+statement = select(User).where(User.name == "Alice").order_by(User.id)
+
+with session_factory() as session:
+    page = paginate(session, statement, query, mapper=UserView.model_validate)
+
+async with async_session_factory() as session:
+    page = await apaginate(session, statement, query, mapper=UserView.model_validate)
+```
+
+省略 `query` 时使用默认分页；`mapper` 可选，用于在 Session 内将实体转换成 DTO。
+省略 `mapper` 则 `rows` 保留原生实体或标量；调用方应在关闭 Session 前加载所需属性。
+
+封装对传入 Select 生成 COUNT 子查询和 OFFSET／LIMIT 查询，保留过滤、JOIN、DISTINCT、
+GROUP BY 与 HAVING；总数查询移除排序，数据查询保留原排序。原有 LIMIT／OFFSET／FETCH
+由分页参数替换，原 Select 不被修改。无匹配结果或页码超出范围时返回空 `rows`，
+`total` 始终表示完整筛选结果总数，不自动调整页码。请使用包含唯一字段的排序保证分页稳定。
+
+支持只选择一个 ORM 实体或一个标量列的 Select；多列／多实体查询明确报错。
+总数按 SQL 查询结果行统计，JOIN 重复行不自动去重；需要去重时显式使用 DISTINCT。
+需要 `.unique()` 的集合 joined eager loading 不在此封装范围内，可使用 `selectinload`。
+COUNT 与数据查询是两次顺序执行的 SQL，在并发写入时一致性取决于调用方事务隔离级别。
+封装不创建、关闭、提交或回滚 Session，不修改事务边界，异步操作不得并发共享同一 Session。
+
+全量示例提供 `GET /users/page` 和 `GET /sync/users/page`，支持 `page`、`pageSize`、`name` 参数，
+返回 `BaseResult[Page[UserView]]`；原有列表接口保持不变。

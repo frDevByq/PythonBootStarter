@@ -26,3 +26,7 @@ Prefer importing public integration types from `pythonboot_redis` and decorators
 The Starter aggregates dependencies without implementing Redis commands.
 Configure native clients through `pythonboot.redis`, inject clients with `autowired()`, or use
 context-resolved static utilities. Both synchronous and asynchronous clients and native locks are supported.
+
+
+完整分层应用见 [全量 Starter 示例](../../example/README.md)，包含全部 Starter、PostgreSQL／Redis 和同步／异步 HTTP 用法。
+See the [complete Starter application](../../example/README.md) for all Starters and sync/async HTTP examples.

@@ -16,3 +16,15 @@
 | `ResponseContext.set_cookie` | `key`、`value`、`**SimpleCookie options` |
 
 `controller` 与 `controller_advise` 的通用 Bean 参数为 `name`、`init_method`、`destroy_method`、`lazy`、`scope`、`primary`、`qualifiers` 和 `depends_on`。Web API 从 `pythonboot_web` 导入；核心 Bean 声明和 `autowired()` 从 `pythonboot` 导入。
+
+
+## ORM 分页 API
+
+| API | Parameters / Fields |
+| --- | --- |
+| `PageQuery` | `page=1`, `pageSize=10` |
+| `Page[T]` | `page=1`, `pageSize=10`, `total=0`, `rows=[]` |
+| `paginate` | `session: Session`, `statement: Select`, `query: PageQuery \| None = None`, `mapper=None` (keyword-only) |
+| `apaginate` | `session: AsyncSession`, `statement: Select`, `query: PageQuery \| None = None`, `mapper=None` (keyword-only), awaitable |
+
+具体行为与示例见 [分页查询](./sqlalchemy.md#分页查询)。

@@ -1,0 +1,41 @@
+active:
+  profile: local
+
+example:
+  name: PythonBoot Starter Example
+  sync_database_url: postgresql+psycopg://pythonboot:pythonboot@127.0.0.1:15432/pythonboot_example
+
+pythonboot:
+  web:
+    datetime_format: "%Y-%m-%d %H:%M:%S"
+  docs:
+    enabled: true
+    provider: swagger
+    path: /docs
+    openapi_path: /openapi.json
+  datasource:
+    url: postgresql+asyncpg://pythonboot:pythonboot@127.0.0.1:15432/pythonboot_example
+    echo: false
+    hide_parameters: true
+    pool:
+      kind: queue
+      size: 5
+      max_overflow: 5
+      timeout: 5
+      recycle: 1800
+      pre_ping: true
+  sqlalchemy:
+    enabled: true
+    mode: async
+    session:
+      expire_on_commit: false
+      autoflush: true
+  redis:
+    enabled: true
+    mode: async
+    url: redis://127.0.0.1:16379/0
+    decode_responses: true
+    max_connections: 20
+    socket_timeout: 5
+    socket_connect_timeout: 5
+    health_check_interval: 30

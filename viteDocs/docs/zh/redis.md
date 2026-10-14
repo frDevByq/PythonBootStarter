@@ -210,3 +210,6 @@ Web 场景随 ASGI lifespan 启停容器；独立程序使用核心容器生命�
 `pythonboot_redis` 和 `pythonboot_starter_redis` 显式导出 `RedisClient`、`AsyncRedisClient`、
 `RedisProperties`、`RedisUtil`、`AsyncRedisUtil`。原生锁、连接池和异常从 `redis` 对应模块导入。
 完整异步 Web 示例位于仓库 `examples/redis/`，演示原生客户端注入、静态工具、List 与分布式锁。
+
+
+[全量 Starter 示例工程](./example.md)：所有 Starter 的标准分层应用、PostgreSQL／Redis 和同步／异步 HTTP 演示。

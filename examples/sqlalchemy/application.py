@@ -2,13 +2,13 @@
 
 from pathlib import Path
 
-from fastapi import Path as PathParameter
+from fastapi import Path as PathParameter, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import String, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from pythonboot import autowired, service
-from pythonboot_sqlalchemy import AsyncSessionFactory
+from pythonboot_sqlalchemy import AsyncSessionFactory, Page, PageQuery, apaginate
 from pythonboot_web import PythonBootApplication, controller, get, put, pythonboot_application
 
 
@@ -46,6 +46,10 @@ class UserService:
 
     session_factory: AsyncSessionFactory = autowired()
 
+    async def find_page(self, query: PageQuery) -> Page[UserView]:
+        async with self.session_factory() as session:
+            return await apaginate(session, select(User).order_by(User.id), query, mapper=UserView.model_validate)
+
     async def list_users(self) -> list[UserView]:
         async with self.session_factory() as session:
             users = (await session.scalars(select(User).order_by(User.id))).all()
@@ -67,7 +71,19 @@ class UserController:
 
     user_service: UserService = autowired()
 
+    @get("/page", summary="分页查询用户", response_model=Page[UserView])
+    async def find_page(
+        self,
+        page: int = Query(default=1, ge=1, title="页码", description="从 1 开始的页码"),
+        pageSize: int = Query(default=10, ge=1, title="每页条数", description="每页最大条数"),
+    ) -> Page[UserView]:
+        return await self.user_service.find_page(PageQuery(page=page, pageSize=pageSize))
+
     @get("", summary="查询用户列表", response_model=list[UserView])
+    async def find_page(self, query: PageQuery) -> Page[UserView]:
+        async with self.session_factory() as session:
+            return await apaginate(session, select(User).order_by(User.id), query, mapper=UserView.model_validate)
+
     async def list_users(self) -> list[UserView]:
         return await self.user_service.list_users()
 

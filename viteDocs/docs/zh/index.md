@@ -20,3 +20,6 @@ uv add pythonboot-starter-web
 Web 启动、Controller、路由、请求上下文和 FastAPI 集成由 `pythonboot_web` 提供。
 
 从 [安装与模块拆分](/zh/web-starter.html) 开始。
+
+
+[全量 Starter 示例工程](./example.md)：所有 Starter 的标准分层应用、PostgreSQL／Redis 和同步／异步 HTTP 演示。

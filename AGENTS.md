@@ -51,6 +51,10 @@ PythonBootStarter/
       pyproject.toml                     Redis 启动依赖聚合
       README.md                          安装和入口说明
       src/pythonboot_starter_redis/      公共客户端、配置和工具导出
+  example/                             全量 Starter 标准应用（src 布局）
+    pyproject.toml                     三个 Starter 与 PostgreSQL 驱动依赖
+    compose.yml                        本地 PostgreSQL 和 Redis 服务
+    src/starter_example/               启动类、配置、Controller、Service 和模型
   examples/sqlalchemy/                  原生 ORM 显式提交示例
   examples/redis/                       客户端注入、静态工具和分布式锁示例
   README.md                              仓库结构及工作区使用说明
@@ -78,6 +82,12 @@ Python 版本要求：>=3.12。使用 UV 管理依赖；各项目的 `pyproject.
 | 项目 | 类型 | 依赖 | 版本范围 | 用途 |
 | --- | --- | --- | --- | --- |
 | 根工作区 | 运行时 | 无 | — | 仅组织子项目，不聚合运行时依赖 |
+| pythonboot-starter-example | 运行时 | pythonboot-starter-web | >=0.1.0,<0.2 | 完整 Web 应用与 HTTP 演示 |
+| pythonboot-starter-example | 运行时 | pythonboot-starter-sqlalchemy | >=0.1.0,<0.2 | 同步／异步原生 ORM 与显式提交／回滚 |
+| pythonboot-starter-example | 运行时 | pythonboot-starter-redis | >=0.1.0,<0.2 | 同步／异步 Redis 全部工具与原生锁 |
+| pythonboot-starter-example | 运行时 | asyncpg | >=0.30,<1 | PostgreSQL 异步驱动 |
+| pythonboot-starter-example | 运行时 | psycopg[binary] | >=3.2,<4 | PostgreSQL 同步驱动与二进制扩展 |
+| pythonboot-starter-example | 构建 | hatchling | >=1.27,<2 | 安装 src 布局的示例应用 |
 | pythonboot-web | 运行时 | pythonboot | >=0.1.0,<0.2 | 核心容器、Bean、配置、自动配置和上下文能力 |
 | pythonboot-web | 运行时 | fastapi | >=0.115,<1 | ASGI Web 框架、路由和 OpenAPI |
 | pythonboot-web | 运行时 | uvicorn[standard] | >=0.34,<1 | ASGI 服务及本地热重载 |
@@ -103,7 +113,7 @@ Python 版本要求：>=3.12。使用 UV 管理依赖；各项目的 `pyproject.
   `pyproject.toml`、本文件的清单和用途说明。
 - 当前工作区未引入开发或测试依赖；新增时同样登记。
 - 新增依赖应有明确用途；标准库可以满足的功能优先使用标准库。
-- 工作区成员统一由根目录 `[tool.uv.workspace]` 管理，成员匹配 `modules/*` 和 `starters/*`。
+- 工作区成员统一由根目录 `[tool.uv.workspace]` 管理，成员匹配 `modules/*` 和 `starters/*`，并包含 `example` 应用。
 - 工作区内的实现包通过 `[tool.uv.sources]` 的 `workspace = true` 关联，
   同级核心框架使用本地可编辑路径。新增工作区内部依赖时同步登记来源。
 - 发布依赖使用包名和版本范围，不将本机绝对路径或本地可编辑来源写入分发依赖。
@@ -170,6 +180,15 @@ Python 版本要求：>=3.12。使用 UV 管理依赖；各项目的 `pyproject.
 
 - 当前 SQLAlchemy Starter 采用原生 ORM 和显式提交，不提供 Mapper 或核心事务管理器适配。
   业务注入原生 Session 工厂并创建作用域，显式调用 commit，需要复用失败 Session 时 rollback。
+- 分页实现位于 `pythonboot_sqlalchemy.pagination`，Starter 仅重导出公共入口。
+  `PageQuery` 使用 `page=1`、`pageSize=10`，二者至少为 1；`Page[T]` 额外包含 `total`、`rows`。
+  保持 Python 与 JSON 字段名 `pageSize`，提供同步 `paginate` 和异步 `apaginate`。
+- 分页接收调用方的原生 Session 与单实体／单标量 Select，COUNT 完整筛选结果并应用 OFFSET／LIMIT；
+  保留过滤、JOIN、DISTINCT、GROUP BY、HAVING 和数据排序，替换既有 LIMIT／OFFSET／FETCH。
+  不修改原 Select，不自动去重 JOIN 行，不自动修正超出范围的页码；空页保留筛选总数。
+  多列／多实体查询明确报错；集合 joined eager loading 需要 unique 的场景使用其他原生查询方式。
+- 分页不创建、关闭、提交或回滚 Session；DTO mapper 在 Session 内运行。
+  两次查询的一致性由调用方事务隔离保证，示例按唯一字段稳定排序。
 - Session 不注册为共享单例，不自动绑定 HTTP 请求或业务方法；并发任务不得共享 Session。
 - 数据库驱动由应用声明，URL 由 SQLAlchemy 解析；不维护驱动映射、不自动建表或迁移。
 - 默认 Engine 通过 dispose 接入容器关闭；自定义 Engine 和外部连接池的关闭由提供方声明。
@@ -191,6 +210,24 @@ Python 版本要求：>=3.12。使用 UV 管理依赖；各项目的 `pyproject.
   共享事务 rollback-only 后，外层尝试提交必须抛出 `UnexpectedRollbackError`。
 - 资源及上下文由具体管理器释放和恢复；取消及其他非 `Exception` 的
   `BaseException` 必须回滚。
+
+## 全量示例工程
+
+- `example/` 是标准 PythonBoot 应用，使用 `src/starter_example` 布局，属于 UV workspace，
+  只用于演示，不作为 Starter 发布。保留 `examples/` 下的专项片段。
+- 安装全部 Starter；每次新增 Starter 或功能时，同步维护示例依赖、配置、业务接口与中英文功能清单。
+- 启动类继承 `PythonBootApplication`，按 Controller、Service、domain 和 config 分层，
+  仅通过公开 API 使用框架；不得复制框架实现。
+- 示例默认异步自动配置，同时以应用 Bean 演示同步资源及命名／限定符注入、
+  自定义异步 Session 工厂的自动配置退让、原生 FastAPI middleware／lifespan 组合，
+  覆盖 ORM CRUD、显式 commit／rollback、Redis 全部静态工具与锁，以及 Web 公开功能。
+- 所有示例 Controller 及原生路由声明 `BaseResult[T]` 响应模型；成功业务码 200、
+  消息“操作成功”，失败业务码 500，HTTP 状态保留原生语义。
+- 示例自己的建表逻辑放在生命周期回调中，禁止在导入时建表或连接外部资源；
+  Starter 本身仍不自动建表。每次 ORM 操作独立 Session，不使用核心事务管理器代替显式提交。
+- 本地 PostgreSQL 和 Redis 使用独立示例容器及端口（15432、16379），
+  测试结束停止并保留容器与数据，不使用自动删除参数或删除容器。
+- 运行、安装依赖、更新锁文件和 HTTP 测试仍须遵循用户授权，不因存在示例而自动执行。
 
 ## 文档与示例同步
 

@@ -42,3 +42,6 @@ For local development, keep the core and Starter repositories as sibling directo
 `uv sync` installs the local Starter and Web implementation through its development group; use
 `uv sync --no-dev` for core-only dependencies. Use `uv sync --all-packages` in the Starter workspace.
 Local UV source paths do not enter published dependencies.
+
+
+[Complete Starter application](./example.md): all Starters, PostgreSQL/Redis, layered application structure, and sync/async HTTP examples.

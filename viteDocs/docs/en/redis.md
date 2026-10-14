@@ -214,3 +214,6 @@ native APIs, with matching Bean and injection types, instead of inferring topolo
 `RedisProperties`, `RedisUtil`, and `AsyncRedisUtil`. Import native locks, pools, and exceptions from
 their redis-py modules. Repository `examples/redis/` demonstrates async client injection, static utilities,
 List commands, and distributed locks through a Web application.
+
+
+[Complete Starter application](./example.md): all Starters, PostgreSQL/Redis, layered application structure, and sync/async HTTP examples.

@@ -16,3 +16,15 @@
 | `ResponseContext.set_cookie` | `key`, `value`, and `**SimpleCookie options` |
 
 The common Bean arguments for `controller` and `controller_advise` are `name`, `init_method`, `destroy_method`, `lazy`, `scope`, `primary`, `qualifiers`, and `depends_on`. Import Web APIs from `pythonboot_web`; import core Bean declarations and `autowired()` from `pythonboot`.
+
+
+## ORM pagination API
+
+| API | Parameters / Fields |
+| --- | --- |
+| `PageQuery` | `page=1`, `pageSize=10` |
+| `Page[T]` | `page=1`, `pageSize=10`, `total=0`, `rows=[]` |
+| `paginate` | `session: Session`, `statement: Select`, `query: PageQuery \| None = None`, `mapper=None` (keyword-only) |
+| `apaginate` | `session: AsyncSession`, `statement: Select`, `query: PageQuery \| None = None`, `mapper=None` (keyword-only), awaitable |
+
+See [Pagination](./sqlalchemy.md#pagination) for behavior and examples.

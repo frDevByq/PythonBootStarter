@@ -2,6 +2,8 @@
 
 基于 UV 管理的 PythonBoot Starter 多项目仓库。
 
+- [全量示例工程](example/README.md)：全部 Starter、PostgreSQL／Redis、同步／异步功能与 HTTP 接口。
+
 ## 结构
 
 - `starters/pythonboot-starter-web`：Web 应用启动依赖。
@@ -70,3 +72,45 @@ commit logic in AI-assisted code generation reduces omissions without relying on
 The Redis Starter configures native redis-py clients and lifecycle-managed pools, with sync and async
 injection plus context-resolved static utilities. Native distributed locks support acquisition, release,
 ownership checks, and explicit renewal. No global client is cached; independent tasks bind their container.
+
+
+## 全量示例工程 / Complete example
+
+`example/` 是独立的 `src` 布局 PythonBoot 应用，也是 UV workspace 成员；
+安装三个 Starter 与应用自己的 `asyncpg`、`psycopg[binary]` PostgreSQL 驱动。
+默认资源通过 entry point 自动配置，同步资源通过应用 Bean 声明，覆盖 ORM CRUD、
+显式提交／回滚、Redis 全部工具和分布式锁，以及 Web 路由、异常、上下文、日期格式和文档。
+配置、Service、Controller、模型与启动入口分层维护，详见 [示例说明](example/README.md)。
+
+```bash
+docker compose -f example/compose.yml up -d
+uv sync --all-packages
+uv run --package pythonboot-starter-example python -m starter_example.application
+```
+
+访问 `http://127.0.0.1:18000/docs`。已有同名容器使用 `docker start`；
+用完执行 `docker stop pythonboot-starter-example-postgres pythonboot-starter-example-redis`，保留容器与数据。
+
+The [complete example](example/README.md) is a workspace application with every Starter,
+real PostgreSQL and Redis, both sync and async APIs, explicit transactions, all Redis utilities,
+native locks, and the Web features. Run the commands above from the repository root.
+Stop and retain the example containers after use. See the [English guide](viteDocs/docs/en/example.md).
+
+
+示例同时展示应用自定义异步 Session 工厂使默认自动配置退让，以及原生 FastAPI middleware／lifespan 组合。
+授权验证时，启动后运行 `uv run --package pythonboot-starter-example python example/http_smoke.py`。
+
+
+## ORM 分页 / ORM pagination
+
+`pythonboot_sqlalchemy` 和 `pythonboot_starter_sqlalchemy` 导出 `PageQuery`、`Page[T]`、
+`paginate`（同步）与 `apaginate`（异步）。`PageQuery` 默认 `page=1`、`pageSize=10`，
+`Page` 额外包含 `total` 与 `rows`。分页封装接收原生 Session 与单实体／单列 Select，
+计算筛选总数并应用 OFFSET／LIMIT，支持 DTO mapper，Session 与事务仍由调用方管理。
+完整示例增加 `/users/page` 和 `/sync/users/page`，原有列表接口保留。
+详见 [中文分页文档](viteDocs/docs/zh/sqlalchemy.md#分页查询)。
+
+The ORM packages export `PageQuery`, `Page[T]`, sync `paginate`, and async `apaginate`.
+Pagination defaults to page 1 and size 10; results also contain total and rows.
+Native Session ownership and transaction boundaries remain with callers.
+See [English pagination documentation](viteDocs/docs/en/sqlalchemy.md#pagination).

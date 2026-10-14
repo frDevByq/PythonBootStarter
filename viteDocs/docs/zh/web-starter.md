@@ -41,3 +41,6 @@ app = Application().app
 本地开发时，将核心仓库与 Starter 仓库放在同级目录。核心仓库使用 `uv sync`
 安装开发组中的本地 Starter 与 Web 实现；仅需核心能力时使用 `uv sync --no-dev`。
 Starter 工作区使用 `uv sync --all-packages`。UV sources 的本地路径不进入发布依赖。
+
+
+[全量 Starter 示例工程](./example.md)：所有 Starter 的标准分层应用、PostgreSQL／Redis 和同步／异步 HTTP 演示。

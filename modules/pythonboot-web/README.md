@@ -29,3 +29,7 @@ class GreetingController:
 class Application(PythonBootApplication):
     pass
 ```
+
+
+完整分层应用见 [全量 Starter 示例](../../example/README.md)，包含全部 Starter、PostgreSQL／Redis 和同步／异步 HTTP 用法。
+See the [complete Starter application](../../example/README.md) for all Starters and sync/async HTTP examples.

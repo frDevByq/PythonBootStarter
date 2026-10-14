@@ -20,3 +20,11 @@ as the ASGI entry point. The database file is relative to the process working di
 Prepare the table and seed data with your migration tool or SQLite client using the SQL above.
 No tables are created automatically and no database connection is opened during import.
 Reads close their Session; renames explicitly commit. Uncommitted work is rolled back on close.
+
+
+## 分页 / Pagination
+
+`GET /users/page?page=1&pageSize=10` 返回 `Page[UserView]`，包含 total、page、pageSize、rows。
+业务通过 `apaginate(session, select(User).order_by(User.id), PageQuery(...), mapper=UserView.model_validate)`
+查询并在 Session 内转换 DTO；不传分页参数时默认第 1 页、每页 10 条。
+The example demonstrates async pagination using PageQuery, Page and apaginate with a DTO mapper.

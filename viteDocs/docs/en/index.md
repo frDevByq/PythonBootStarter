@@ -20,3 +20,6 @@ uv add pythonboot-starter-web
 `pythonboot_web` provides Web bootstrap, controllers, routes, request context, and FastAPI integration.
 
 Start with [Installation and modules](/en/web-starter.html).
+
+
+[Complete Starter application](./example.md): all Starters, PostgreSQL/Redis, layered application structure, and sync/async HTTP examples.

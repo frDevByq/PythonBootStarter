@@ -58,3 +58,7 @@ Application Beans override defaults; providers declare cleanup for custom resour
 Locks use native ownership tokens, bounded acquisition, explicit renewal, and atomic release.
 There is no automatic renewal. Use a distinct lock object per task or thread and release in finally.
 Standalone tasks bind their container through `ContextUtil.use(context)`.
+
+
+完整分层应用见 [全量 Starter 示例](../../example/README.md)，包含全部 Starter、PostgreSQL／Redis 和同步／异步 HTTP 用法。
+See the [complete Starter application](../../example/README.md) for all Starters and sync/async HTTP examples.

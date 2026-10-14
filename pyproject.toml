@@ -7,10 +7,14 @@ requires-python = ">=3.12"
 dependencies = []
 
 [tool.uv.workspace]
-members = ["starters/*", "modules/*"]
+members = ["starters/*", "modules/*", "example"]
 
 [tool.uv.sources]
 pythonboot = { path = "../PythonBoot", editable = true }
 pythonboot-web = { workspace = true }
 pythonboot-sqlalchemy = { workspace = true }
 pythonboot-redis = { workspace = true }
+
+pythonboot-starter-web = { workspace = true }
+pythonboot-starter-sqlalchemy = { workspace = true }
+pythonboot-starter-redis = { workspace = true }

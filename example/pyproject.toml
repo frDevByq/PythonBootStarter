@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pythonboot-starter-example"
+version = "0.1.0"
+description = "Complete PythonBoot Starter example application"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pythonboot-starter-web>=0.1.0,<0.2",
+    "pythonboot-starter-sqlalchemy>=0.1.0,<0.2",
+    "pythonboot-starter-redis>=0.1.0,<0.2",
+    "asyncpg>=0.30,<1",
+    "psycopg[binary]>=3.2,<4",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/starter_example"]
