@@ -19,6 +19,7 @@ class RedisProperties(BaseSettings):
     url: SecretStr = SecretStr("redis://localhost:6379/0")
     username: str | None = None
     password: SecretStr | None = None
+    serializer: str = Field(default="json", min_length=1)
     decode_responses: bool = True
     encoding: str = Field(default="utf-8", min_length=1)
     max_connections: int = Field(default=50, ge=1)

@@ -157,7 +157,7 @@ def web():
 
 def docs():
     data, _ = call("GET", "/docs", envelope=False)
-    assert "swagger-ui" in data
+    assert "@scalar/api-reference" in data
     data, _ = call("GET", "/openapi.json", envelope=False)
     assert data["info"]["title"] == "PythonBoot Starter Example"
     expected = {

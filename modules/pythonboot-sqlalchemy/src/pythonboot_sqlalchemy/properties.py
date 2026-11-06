@@ -54,6 +54,23 @@ class SessionProperties(BaseModel):
     autoflush: bool = True
 
 
+class SoftDeleteProperties(BaseModel):
+    """Opt-in logical deletion with application-defined marker values."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    enabled: bool = False
+    field: str = Field(default="is_delete", pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")
+    active_value: bool | int | str = False
+    deleted_value: bool | int | str = True
+
+    @model_validator(mode="after")
+    def validate_values(self) -> "SoftDeleteProperties":
+        if self.active_value == self.deleted_value:
+            raise ValueError("Soft-delete active and deleted values must differ")
+        return self
+
+
 @configuration_properties("pythonboot.sqlalchemy")
 class SqlAlchemyProperties(BaseSettings):
     """ORM settings; mode and enabled select auto-configurations through YAML."""
@@ -65,3 +82,4 @@ class SqlAlchemyProperties(BaseSettings):
     enabled: bool = True
     mode: Literal["sync", "async"] = "async"
     session: SessionProperties = Field(default_factory=SessionProperties)
+    soft_delete: SoftDeleteProperties = Field(default_factory=SoftDeleteProperties)

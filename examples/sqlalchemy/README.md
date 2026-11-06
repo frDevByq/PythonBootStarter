@@ -28,3 +28,10 @@ Reads close their Session; renames explicitly commit. Uncommitted work is rolled
 业务通过 `apaginate(session, select(User).order_by(User.id), PageQuery(...), mapper=UserView.model_validate)`
 查询并在 Session 内转换 DTO；不传分页参数时默认第 1 页、每页 10 条。
 The example demonstrates async pagination using PageQuery, Page and apaginate with a DTO mapper.
+# Logical deletion example / 逻辑删除示例
+
+`soft_delete_example.py` 展示配置开启后的实例软删除、查询已删除记录、恢复和自定义异步工厂。
+逻辑删除默认关闭；`SoftDeleteMixin` 不自动添加字段，迁移须由应用处理。
+`soft_delete_example.py` demonstrates opt-in instance deletion, querying deleted records,
+restoration, and an explicit custom async factory. Applications own column declarations and migrations.
+

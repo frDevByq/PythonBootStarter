@@ -20,6 +20,7 @@ pythonboot:
     enabled: true
     mode: sync
     url: redis://localhost:6379/0
+    serializer: json
     decode_responses: true
     encoding: utf-8
     max_connections: 50
@@ -35,6 +36,7 @@ pythonboot:
 | `url` | `redis://localhost:6379/0` | 地址、端口、认证和数据库，支持原生 redis/rediss/unix URL |
 | `username` | 未设置 | Redis ACL 用户名 |
 | `password` | 未设置 | 密码，配置 Bean 使用 SecretStr |
+| `serializer` | `json` | set/get 序列化：json、raw 或自定义类完整路径 |
 | `decode_responses` | `true` | 返回字符串；关闭时返回 bytes |
 | `encoding` | `utf-8` | 编解码方式 |
 | `max_connections` | `50` | 最大池连接数，至少 1；默认池耗尽时按原生行为报错 |
@@ -131,7 +133,7 @@ with ContextUtil.use(context):
 | 分类 | 方法与参数 |
 | --- | --- |
 | 客户端 | `get_client(*, name=None, qualifier=None)` |
-| 字符串 | `get(key)`、`set(key, value, *, ex=None, px=None, nx=False, xx=False, keepttl=False)` |
+| 字符串 | `get(key, *, target_type=None)`、`set(key, value, *, ex=None, px=None, nx=False, xx=False, keepttl=False)` |
 | 键和 TTL | `delete(*keys)`、`exists(*keys)`、`expire(key, seconds)`、`ttl(key)` |
 | 计数器 | `incr(key, amount=1)`、`decr(key, amount=1)` |
 | Hash | `hset(key, mapping)`、`hget(key, field)`、`hgetall(key)`、`hdel(key, *fields)` |
@@ -144,8 +146,43 @@ with ContextUtil.use(context):
 | 归属 | `lock_owned(lock)` |
 
 返回值保留 redis-py 语义，例如 `set` 返回 True 或 None，`exists` 返回数量，
-`ttl` 返回 -1 表示无过期时间、-2 表示键不存在。值支持 str、bytes、int、float，
-工具不隐式序列化对象或 JSON。列表范围的 end 是包含边界，-1 为最后一项。
+`ttl` 返回 -1 表示无过期时间、-2 表示键不存在。set/get 默认 JSON 序列化对象；其他值命令支持原生 str、bytes、int、float。列表范围的 end 是包含边界，-1 为最后一项。
+
+
+### 对象序列化
+
+`set/get` 默认使用 JSON，支持 dict、list、Pydantic 模型、dataclass 和具有 `__dict__` 的普通对象。
+`get` 自动解析 JSON，未指定类型时对象返回 dict；`target_type` 可还原 Pydantic、dataclass，
+普通类通过 `Target(**data)` 构造。不存在的键返回 None；JSON null 也返回 None。
+日期和 UUID 转为字符串，集合转为列表，bytes 按 UTF-8 解码；不支持的对象、循环引用、
+非法 JSON 和类型还原失败明确报错。不存储或自动加载类名。
+
+```python
+from pydantic import BaseModel
+from pythonboot_redis import RedisUtil, AsyncRedisUtil
+
+class User(BaseModel):
+    id: int
+    name: str
+
+RedisUtil.set("example:user-object", User(id=1, name="Alice"), ex=60)
+user = RedisUtil.get("example:user-object", target_type=User)
+await AsyncRedisUtil.set("example:user-object", {"id": 1, "name": "Alice"}, ex=60)
+user = await AsyncRedisUtil.get("example:user-object", target_type=User)
+```
+
+`pythonboot.redis.serializer` 默认 `json`，设置 `raw` 恢复原生 str/bytes/int/float 编码，
+或设置完整类路径如 `my_app.codecs.CustomRedisSerializer`。自定义类须继承 `RedisSerializer`、
+可无参构造，实现同步 `dumps(value)`（返回 str/bytes/int/float）与 `loads(value)`。
+也可通过应用 `@bean` 提供 `RedisSerializer`，默认 Bean 自动退让，支持构造器依赖注入。
+多个序列化器 Bean 须通过 primary 消除歧义；同步／异步及命名客户端共享当前容器的序列化器。
+配置可通过 `PYTHONBOOT_REDIS_SERIALIZER` 覆盖。
+
+仅工具 `set/get` 使用对象序列化；原生客户端、Hash、List、Set、有序集合、计数器与锁仍保持原生行为。
+JSON 字符串会带 JSON 引号，不能直接与原生客户端字符串写入混用；切换序列化器前需迁移旧值
+或使用新键。JSON 下原生计数器数字仍可被 get 解析，计数器只能使用数字值。
+`decode_responses` 仅影响原生响应类型，不改变 JSON get 解析后的类型；自定义二进制序列化器
+应设置 `decode_responses: false`，由序列化器负责 bytes 编解码。
 
 ## 分布式锁
 
@@ -184,11 +221,12 @@ finally:
 
 ## 自动配置与生命周期
 
-自动配置入口名称为 `redis`，配置属性、池、客户端的装配 order 分别为 2900、3000、3100。
+自动配置入口名称为 `redis`，配置属性、序列化器、池、客户端的装配 order 分别为 2900、2950、3000、3100。
 池和客户端的条件使用 `@conditional_on_missing_bean`，应用定义优先。
 
 | Bean | 类型 | 模式与关闭方式 |
 | --- | --- | --- |
+| `redisSerializer` | `RedisSerializer` | 同步／异步共享；应用 Bean 优先 |
 | `redisProperties` | `RedisProperties` | 模块启用 |
 | `redisConnectionPool` | `redis.ConnectionPool` | sync；disconnect |
 | `redisClient` | `RedisClient` | sync；close |
@@ -212,3 +250,5 @@ Web 场景随 ASGI lifespan 启停容器；独立程序使用核心容器生命�
 完整异步 Web 示例位于仓库 `examples/redis/`，演示原生客户端注入、静态工具、List 与分布式锁。
 
 
+
+Public serializer exports: `RedisSerializer`, `JsonRedisSerializer`, `RawRedisSerializer`.

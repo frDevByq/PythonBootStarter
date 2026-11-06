@@ -29,7 +29,7 @@ class QueueService:
         if not await AsyncRedisUtil.acquire_lock(lock):
             raise TimeoutError("Could not acquire the queue lock")
         try:
-            await AsyncRedisUtil.set("examples:last-message", value, ex=60)
+            await AsyncRedisUtil.set("examples:last-message", Message(value=value), ex=60)
             return await AsyncRedisUtil.rpush("examples:queue", value)
         finally:
             await AsyncRedisUtil.release_lock(lock)

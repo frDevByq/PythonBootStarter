@@ -1,7 +1,13 @@
 # 全量 Starter 示例
 
+自定义同步／异步 Session 工厂已接入 `soft_delete` 配置，默认关闭。启用时，参与模型须继承
+`SoftDeleteMixin` 并通过应用迁移添加配置字段；独立示例见 `../examples/sqlalchemy/soft_delete_example.py`。
+Custom sync/async factories honor the opt-in soft-delete configuration, disabled by default.
+Participating models declare the marker mixin and configured column through application migrations.
+
 标准 `src` 布局的 PythonBoot 应用，安装所有 Starter：
-`pythonboot-starter-web`、`pythonboot-starter-sqlalchemy`、`pythonboot-starter-redis`。
+`pythonboot-starter-web`、`pythonboot-starter-sqlalchemy`、`pythonboot-starter-redis`、
+`pythonboot-starter-auth[web,redis]`。
 启动接口从 `pythonboot_starter_web` 导入，路由等 Web API 从 `pythonboot_web` 导入；
 ORM、Redis 公共接口从对应 Starter 导入，核心容器接口从 `pythonboot` 导入。
 
@@ -15,7 +21,7 @@ uv sync --all-packages
 uv run --package pythonboot-starter-example python -m starter_example.application
 ```
 
-应用地址 `http://127.0.0.1:18000`，API 文档 `/docs`，OpenAPI `/openapi.json`。
+应用地址 `http://127.0.0.1:18000`，API 文档使用 Scalar（`/docs`），OpenAPI `/openapi.json`。
 PostgreSQL 使用端口 `15432`、数据库 `pythonboot_example`、用户名／密码 `pythonboot`；
 Redis 使用端口 `16379`。这些凭据仅用于本地演示。
 
@@ -40,6 +46,9 @@ docker stop pythonboot-starter-example-postgres pythonboot-starter-example-redis
 
 | 功能 | HTTP 接口 |
 | --- | --- |
+| 异步 Redis 登录、账号/Token Session、权限与角色 | `POST /auth/login`、`GET/PUT /auth/me`、`GET /auth/device`、`GET /auth/either` |
+| 多端会话、注销与管理员踢人 | `GET /auth/sessions`、`POST /auth/logout`、`POST /auth/kickout/{login_id}` |
+| 同步内存登录与鉴权 | `POST /sync/auth/login`、`GET /sync/auth/me`、`POST /sync/auth/logout` |
 | 全部 Starter 与生命周期状态 | `GET /web/health` |
 | 异步 ORM 增删改查、筛选 | `GET/POST /users`、`GET/PUT/PATCH/DELETE /users/{id}` |
 | 同步 ORM 增删改查、筛选 | `GET/POST /sync/users`、`GET/PUT/PATCH/DELETE /sync/users/{id}` |
@@ -122,3 +131,77 @@ Page 包含 total、page、pageSize、rows；原有非分页列表接口保留�
 
 Sync and async pagination endpoints return total, page, pageSize, and rows; defaults are page 1
 and size 10. Optional name filtering is applied before counting and paging.
+
+`RedisUtil` / `AsyncRedisUtil` 的 set/get 默认 JSON 序列化对象（Pydantic、dataclass、普通对象），
+读取可用 `get(key, target_type=User)` 还原类型。`pythonboot.redis.serializer` 可配置 `json`、
+`raw` 或继承 `RedisSerializer` 的自定义类完整路径；应用序列化器 Bean 优先。
+仅工具 set/get 使用此配置，原生客户端和其他命令保持原生行为；切换格式需迁移旧值或使用新键。
+
+Utility set/get serialize objects as JSON by default, including Pydantic models, dataclasses, and ordinary objects.
+Use `get(key, target_type=User)` to reconstruct a type. Configure `pythonboot.redis.serializer` as
+`json`, `raw`, or a fully qualified `RedisSerializer` subclass; application serializer Beans override defaults.
+Native clients and other commands retain native behavior. Migrate existing values or use new keys when switching formats.
+
+## 鉴权 / Authentication
+
+未登录访问需要权限或角色的接口时抛出 NotLoginError，消息仅为“Not logged in”，由应用异常处理映射为 401。
+Permission and role checks reject unauthenticated callers with NotLoginError (`Not logged in`), mapped to HTTP 401 by application advice.
+
+应用 configure 显式安装 AuthInterceptor，保护 `/auth/*` 与 `/sync/auth/*`，
+放行 `/auth/login` 与 `/sync/auth/login`；其他原有接口保持原有访问行为。
+默认异步 AuthService 使用 Redis，命名同步 Bean 使用进程内存，两个后端的 Token 不能互用。
+应用按请求路径选择拦截器服务，同步和异步装饰器分别使用匹配的容器 Bean。
+
+仅本地演示账号为 `admin / admin-demo`、`reader / reader-demo`。应用验证密码后才调用 login，
+账号 Session 直接保存不含密码的 SessionUser 对象，通过 `get("user", target_type=SessionUser)`
+自动还原，修改昵称后重新 set；Token Session 保存 device。admin 有 `example:*`、
+`admin:session:*` 与 admin 角色，reader 只有 `example:read`；修改昵称和踢人需要相应权限。
+权限每次通过应用 StpInterface 动态获取；默认 JSON 序列化可通过自定义 Bean 替换。
+
+```bash
+curl -X POST http://127.0.0.1:18000/auth/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin-demo","device":"browser"}'
+curl http://127.0.0.1:18000/auth/me -H 'Authorization: Bearer <token>'
+curl http://127.0.0.1:18000/auth/sessions -H 'Authorization: Bearer <token>'
+```
+
+使用另一个 device 登录演示共享账号数据和独立 Token 数据；重复同设备登录替换旧会话，
+超过 5 个活跃登录踢掉最早登录。登录响应的 csrf_token 用于可选 Cookie 写操作，当前示例默认使用 Header。
+ErrorAdvice 是应用自己的异常处理，将未登录映射为 401、角色/权限/CSRF 失败映射为 403、
+存储故障映射为 503，业务失败码仍为 500；Starter 本身仅抛异常。
+
+The application explicitly registers its interceptor and excludes both login endpoints. Async routes use
+Redis; sync routes use a named memory service, with separate tokens. Local demonstration accounts are
+admin/admin-demo and reader/reader-demo. Credential verification and dynamic roles/permissions belong to
+the application. Account sessions store SessionUser models directly and restore them with target_type=SessionUser;
+token sessions hold device data. Wildcard grants, OR checks,
+role checks, concurrent-device sessions, replacement, logout and kickout are demonstrated. Exception advice
+is application-owned; the framework only raises typed errors. See [the Auth guide](../viteDocs/docs/en/auth.md).
+
+
+当前 FastAPI 应用自动注册为名为 `fastapiApp` 的单例 Bean，可通过 `app: FastAPI = autowired()` 注入，
+或在容器启动后通过 `ContextUtil.get_bean(FastAPI)` 获取。每个应用使用独立实例；
+`configure()` 执行时容器尚未启动，请直接使用传入的 `app`。禁用自动配置时此 Bean 仍会注册。
+
+
+The current FastAPI application is registered as the singleton Bean `fastapiApp`.
+Inject it with `app: FastAPI = autowired()` or obtain it with `ContextUtil.get_bean(FastAPI)` after container startup.
+Each application has its own instance. The container has not started during `configure()`; use its `app` argument there.
+The Bean is also registered when `auto_configure=False`.
+
+## 跳过鉴权校验 / Bypass authentication checks
+
+application.yml 默认设置 `pythonboot.auth.check_enabled: true`。
+改为 `false` 或设置 `PYTHONBOOT_AUTH_CHECK_ENABLED=false`，同步内存与异步 Redis 服务的
+登录／权限／角色校验及装饰器、Web 拦截器直接放行，无需 Token 或权限提供者。
+`check_login()` 此时返回 None；获取当前用户、Session 或注销仍要求真实 Token。
+拦截器自动 Cookie CSRF 校验也会跳过，显式 CSRF 校验保持原行为。
+应用凭据验证仍保留，`enabled` 仍控制模块装配。
+
+Set `pythonboot.auth.check_enabled: false` in application.yml, or use
+`PYTHONBOOT_AUTH_CHECK_ENABLED=false`, to bypass login, permission and role checks for both services,
+including decorators and the Web interceptor. check_login returns None; identity/session access and logout
+still require valid tokens. Automatic interceptor CSRF checks are skipped; explicit CSRF checks and
+application credential verification remain active. Keep enabled true to retain service auto-configuration.
+
+关闭鉴权校验时，服务创建会以 ERROR 级别输出醒目的安全警告及恢复配置提示。
+Disabling authentication checks emits a prominent ERROR-level security warning when the service is created, including instructions to restore checks.

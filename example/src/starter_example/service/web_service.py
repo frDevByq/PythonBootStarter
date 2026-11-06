@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from fastapi import FastAPI
+
 from pythonboot import autowired, service
 from pythonboot_web import RequestContextHolder
 from starter_example.config.resources import ExampleProperties
@@ -9,6 +11,7 @@ from starter_example.config.resources import ExampleProperties
 
 @service
 class WebService:
+    app: FastAPI = autowired(name="fastapiApp")
     settings: ExampleProperties = autowired()
 
     async def echo(self, item_id: int, payload: dict[str, Any]) -> dict[str, Any]:

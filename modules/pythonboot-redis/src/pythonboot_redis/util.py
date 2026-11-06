@@ -5,11 +5,13 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import timedelta
 from math import isfinite
+from typing import Any
 
 from redis.lock import Lock
 
 from pythonboot import ContextUtil
 from pythonboot_redis.client import RedisClient, RedisKey, RedisResult, RedisValue
+from pythonboot_redis.serialization import RedisSerializer, restore_value
 
 
 def validate_lock_options(timeout: float, blocking_timeout: float, sleep: float) -> None:
@@ -30,16 +32,20 @@ class RedisUtil:
         return ContextUtil.get_bean(RedisClient, name=name, qualifier=qualifier)
 
     @staticmethod
-    def get(key: RedisKey, *, name: str | None = None) -> RedisResult | None:
-        return RedisUtil.get_client(name=name).get(key)
+    def get[T](key: RedisKey, *, target_type: type[T] | None = None, name: str | None = None) -> T | Any:
+        serializer = ContextUtil.get_bean(RedisSerializer)
+        value = RedisUtil.get_client(name=name).get(key)
+        return restore_value(serializer.loads(value), target_type) if value is not None else None
 
     @staticmethod
     def set(
-        key: RedisKey, value: RedisValue, *, ex: int | timedelta | None = None,
+        key: RedisKey, value: Any, *, ex: int | timedelta | None = None,
         px: int | timedelta | None = None, nx: bool = False, xx: bool = False,
         keepttl: bool = False, name: str | None = None,
     ) -> bool | None:
-        return RedisUtil.get_client(name=name).set(key, value, ex=ex, px=px, nx=nx, xx=xx, keepttl=keepttl)
+        serializer = ContextUtil.get_bean(RedisSerializer)
+        encoded = serializer.dumps(value)
+        return RedisUtil.get_client(name=name).set(key, encoded, ex=ex, px=px, nx=nx, xx=xx, keepttl=keepttl)
 
     @staticmethod
     def delete(*keys: RedisKey, name: str | None = None) -> int:

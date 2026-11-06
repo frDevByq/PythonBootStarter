@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from pythonboot import bean, configuration, configuration_properties
 from pythonboot_starter_redis import RedisClient, RedisProperties
 from pythonboot_starter_sqlalchemy import AsyncSessionFactory, SessionFactory, SqlAlchemyProperties
+from pythonboot_starter_sqlalchemy import AsyncSoftDeleteSession, SoftDeleteSession
 
 
 @configuration_properties("example")
@@ -26,7 +27,10 @@ class ResourceConfiguration:
     @bean(name="sqlAlchemyAsyncSessionFactory")
     def async_session_factory(self, engine: AsyncEngine, settings: SqlAlchemyProperties) -> AsyncSessionFactory:
         """An application factory makes the matching default auto-configuration back off."""
-        return AsyncSessionFactory(bind=engine, **settings.session.model_dump())
+        options = settings.session.model_dump()
+        if settings.soft_delete.enabled:
+            options.update(class_=AsyncSoftDeleteSession, soft_delete=settings.soft_delete)
+        return AsyncSessionFactory(bind=engine, **options)
 
     @bean(name="exampleSyncEngine", qualifiers=("sync",), destroy_method="dispose")
     def sync_engine(self, settings: ExampleProperties) -> Engine:
@@ -34,7 +38,10 @@ class ResourceConfiguration:
 
     @bean(name="exampleSyncSessionFactory", qualifiers=("sync",))
     def sync_session_factory(self, engine: Engine, settings: SqlAlchemyProperties) -> SessionFactory:
-        return SessionFactory(bind=engine, **settings.session.model_dump())
+        options = settings.session.model_dump()
+        if settings.soft_delete.enabled:
+            options.update(class_=SoftDeleteSession, soft_delete=settings.soft_delete)
+        return SessionFactory(bind=engine, **options)
 
     @bean(name="exampleSyncRedisPool", destroy_method="disconnect")
     def sync_redis_pool(self, settings: RedisProperties) -> ConnectionPool:

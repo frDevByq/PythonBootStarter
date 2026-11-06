@@ -20,6 +20,7 @@ pythonboot:
     enabled: true
     mode: sync
     url: redis://localhost:6379/0
+    serializer: json
     decode_responses: true
     encoding: utf-8
     max_connections: 50
@@ -35,6 +36,7 @@ pythonboot:
 | `url` | `redis://localhost:6379/0` | Native redis/rediss/unix URL including authentication and database |
 | `username` | Unset | Redis ACL user |
 | `password` | Unset | SecretStr password |
+| `serializer` | `json` | set/get codec: json, raw, or fully qualified custom class path |
 | `decode_responses` | `true` | Return strings; false returns bytes |
 | `encoding` | `utf-8` | Encoding and decoding |
 | `max_connections` | `50` | Pool capacity, minimum 1; exhausted default pools raise natively |
@@ -131,7 +133,7 @@ native lock objects and use the client already associated with each object.
 | Category | Methods and arguments |
 | --- | --- |
 | Client | `get_client(*, name=None, qualifier=None)` |
-| Strings | `get(key)`, `set(key, value, *, ex=None, px=None, nx=False, xx=False, keepttl=False)` |
+| Strings | `get(key, *, target_type=None)`, `set(key, value, *, ex=None, px=None, nx=False, xx=False, keepttl=False)` |
 | Keys and TTL | `delete(*keys)`, `exists(*keys)`, `expire(key, seconds)`, `ttl(key)` |
 | Counters | `incr(key, amount=1)`, `decr(key, amount=1)` |
 | Hash | `hset(key, mapping)`, `hget(key, field)`, `hgetall(key)`, `hdel(key, *fields)` |
@@ -144,8 +146,45 @@ native lock objects and use the client already associated with each object.
 | Ownership | `lock_owned(lock)` |
 
 Return values preserve native semantics: set returns True or None, exists returns a count, TTL -1
-means no expiration and -2 means missing. Values support str, bytes, int, and float without implicit
-JSON or object serialization. List range end is inclusive and -1 selects the last item.
+means no expiration and -2 means missing. Utility set/get serialize objects as JSON by default; other value commands accept native str, bytes, int, and float. List range end is inclusive and -1 selects the last item.
+
+
+### Object serialization
+
+Utility `set/get` use JSON by default, accepting dicts, lists, Pydantic models, dataclasses, and ordinary
+objects with `__dict__`. Reads decode JSON into Python values; objects become dicts unless `target_type`
+is supplied. Pydantic models and dataclasses are validated; ordinary classes are constructed with
+`Target(**data)`. Missing keys and stored JSON null both return None. Dates and UUIDs become strings,
+sets become lists, and bytes are decoded as UTF-8. Unsupported objects, cycles, invalid JSON, and
+reconstruction failures raise errors. Stored payloads do not contain automatically loaded class names.
+
+```python
+from pydantic import BaseModel
+from pythonboot_redis import RedisUtil, AsyncRedisUtil
+
+class User(BaseModel):
+    id: int
+    name: str
+
+RedisUtil.set("example:user-object", User(id=1, name="Alice"), ex=60)
+user = RedisUtil.get("example:user-object", target_type=User)
+await AsyncRedisUtil.set("example:user-object", {"id": 1, "name": "Alice"}, ex=60)
+user = await AsyncRedisUtil.get("example:user-object", target_type=User)
+```
+
+Set `pythonboot.redis.serializer` to `json` (default), `raw` (native str/bytes/int/float behavior), or a
+fully qualified class path such as `my_app.codecs.CustomRedisSerializer`. Custom classes must subclass
+`RedisSerializer`, support no-argument construction, and implement synchronous `dumps(value)` returning
+str/bytes/int/float and `loads(value)`. Alternatively, provide an application `RedisSerializer` Bean to
+replace the default and use constructor dependency injection. Select a primary when multiple serializer
+Beans exist. Sync, async, and named clients share the current container's serializer.
+`PYTHONBOOT_REDIS_SERIALIZER` overrides the selection.
+
+Only utility `set/get` serialize objects. Native clients, Hash, List, Set, Sorted Set, counters, and locks
+retain native behavior. JSON strings include JSON quotes; do not mix them with native string writes.
+Migrate existing values or use new keys before switching codecs. Native numeric counters can be decoded
+by JSON get; use numeric values for counters. `decode_responses` controls native responses, not decoded
+JSON types. Binary custom codecs require `decode_responses: false` and handle their own bytes encoding.
 
 ## Distributed locks
 
@@ -186,11 +225,12 @@ multiple commands require atomicity; locks do not roll back commands.
 
 ## Auto-configuration and lifecycle
 
-Entry-point name: `redis`. Properties, pools, and clients assemble at orders 2900, 3000, and 3100.
+Entry-point name: `redis`. Properties, serializers, pools, and clients assemble at orders 2900, 2950, 3000, and 3100.
 Default pools and clients use conditional-on-missing-Bean semantics; application definitions take priority.
 
 | Bean | Type | Mode and cleanup |
 | --- | --- | --- |
+| `redisSerializer` | `RedisSerializer` | Shared by sync/async; application Beans override defaults |
 | `redisProperties` | `RedisProperties` | Module enabled |
 | `redisConnectionPool` | `redis.ConnectionPool` | sync; disconnect |
 | `redisClient` | `RedisClient` | sync; close |
@@ -216,3 +256,5 @@ their redis-py modules. Repository `examples/redis/` demonstrates async client i
 List commands, and distributed locks through a Web application.
 
 
+
+Public serializer exports: `RedisSerializer`, `JsonRedisSerializer`, `RawRedisSerializer`.

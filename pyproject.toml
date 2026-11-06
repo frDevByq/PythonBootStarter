@@ -18,3 +18,6 @@ pythonboot-redis = { workspace = true }
 pythonboot-starter-web = { workspace = true }
 pythonboot-starter-sqlalchemy = { workspace = true }
 pythonboot-starter-redis = { workspace = true }
+
+pythonboot-auth = { workspace = true }
+pythonboot-starter-auth = { workspace = true }

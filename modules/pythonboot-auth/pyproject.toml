@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pythonboot-auth"
+version = "0.1.0"
+description = "Session authentication and extensible authorization for PythonBoot"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pythonboot>=0.1.0,<0.2",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+]
+
+[project.optional-dependencies]
+web = ["pythonboot-web>=0.1.0,<0.2"]
+redis = ["pythonboot-redis>=0.1.0,<0.2"]
+
+[project.entry-points."pythonboot.autoconfigure"]
+auth = "pythonboot_auth.configuration"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pythonboot_auth"]

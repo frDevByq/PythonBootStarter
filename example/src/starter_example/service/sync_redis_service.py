@@ -28,6 +28,8 @@ class SyncRedisService:
             results["named_client"] = client is self.redis_client
             results["set"] = RedisUtil.set(key, "hello", ex=60, nx=True)
             results["get"] = RedisUtil.get(key)
+            results["set_object"] = RedisUtil.set(key, {"id": 1, "name": "Alice"}, ex=60)
+            results["get_object"] = RedisUtil.get(key)
             results["exists"] = RedisUtil.exists(key)
             results["expire"] = RedisUtil.expire(key, 120)
             results["ttl"] = RedisUtil.ttl(key)

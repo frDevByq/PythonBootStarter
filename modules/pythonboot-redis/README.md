@@ -17,6 +17,7 @@ pythonboot:
   redis:
     url: redis://localhost:6379/0
     mode: sync
+    serializer: json
     decode_responses: true
 ```
 
@@ -62,3 +63,13 @@ Standalone tasks bind their container through `ContextUtil.use(context)`.
 
 完整分层应用见 [全量 Starter 示例](../../example/README.md)，包含全部 Starter、PostgreSQL／Redis 和同步／异步 HTTP 用法。
 See the [complete Starter application](../../example/README.md) for all Starters and sync/async HTTP examples.
+
+`RedisUtil` / `AsyncRedisUtil` 的 set/get 默认 JSON 序列化对象（Pydantic、dataclass、普通对象），
+读取可用 `get(key, target_type=User)` 还原类型。`pythonboot.redis.serializer` 可配置 `json`、
+`raw` 或继承 `RedisSerializer` 的自定义类完整路径；应用序列化器 Bean 优先。
+仅工具 set/get 使用此配置，原生客户端和其他命令保持原生行为；切换格式需迁移旧值或使用新键。
+
+Utility set/get serialize objects as JSON by default, including Pydantic models, dataclasses, and ordinary objects.
+Use `get(key, target_type=User)` to reconstruct a type. Configure `pythonboot.redis.serializer` as
+`json`, `raw`, or a fully qualified `RedisSerializer` subclass; application serializer Beans override defaults.
+Native clients and other commands retain native behavior. Migrate existing values or use new keys when switching formats.

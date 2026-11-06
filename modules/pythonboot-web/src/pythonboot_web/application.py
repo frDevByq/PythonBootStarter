@@ -10,7 +10,7 @@ from typing import Any
 import uvicorn
 from fastapi import FastAPI
 
-from pythonboot.beans import scan_components
+from pythonboot.beans import BeanDefinition, scan_components
 from pythonboot.boot.autoconfiguration import assemble_auto_configurations
 from pythonboot.context import ApplicationContext
 from pythonboot.config import configure_logging, load_configuration
@@ -27,6 +27,7 @@ def create_app(
     *, title: str = "PythonBoot", version: str = "0.1.0",
     scan_packages: tuple[str, ...] = (),
     exclude_modules: tuple[str, ...] = (), config_dir: str | Path | None = None,
+    env_dir: str | Path | None = None,
     auto_configure: bool = True, exclude_auto_configurations: tuple[str, ...] = (),
     exclude: tuple[type, ...] = (),
     **options: Any,
@@ -41,11 +42,25 @@ def create_app(
         tuple(scan_packages), exclude_modules=exclude_modules, exclude=excluded_classes,
     )
     logger.info("Scanned %d component definitions from %d modules.", len(result.definitions), len(result.modules))
-    configuration = load_configuration(config_dir) if config_dir is not None else {}
+    configuration = load_configuration(config_dir, env_dir=env_dir) if config_dir is not None else {}
     configure_logging(configuration)
     docs_options = resolve_docs_options(configuration)
     date_time_format = resolve_datetime_format(configuration)
-    definitions = result.definitions
+    fastapi_options = {
+        **options,
+        "docs_url": None,
+        "redoc_url": None,
+        "openapi_url": docs_options.openapi_path if docs_options.enabled else None,
+    }
+    app = FastAPI(title=title, version=version, **fastapi_options)
+
+    def fastapi_app() -> FastAPI:
+        return app
+
+    definitions = (
+        *result.definitions,
+        BeanDefinition(name="fastapiApp", bean_type=FastAPI, factory=fastapi_app),
+    )
     if auto_configure:
         definitions = assemble_auto_configurations(
             definitions, result.modules, configuration, exclude=exclude_auto_configurations,
@@ -55,14 +70,8 @@ def create_app(
     else:
         logger.info("Auto-configuration is disabled.")
     context = ApplicationContext(definitions, configuration=configuration)
-    fastapi_options = {
-        **options,
-        "docs_url": None,
-        "redoc_url": None,
-        "openapi_url": docs_options.openapi_path if docs_options.enabled else None,
-    }
-    app = FastAPI(title=title, version=version, **fastapi_options)
     app.state.context = context
+    logger.info("Registered FastAPI application singleton bean 'fastapiApp'.")
     native_lifespan = app.router.lifespan_context
 
     @asynccontextmanager
@@ -99,6 +108,7 @@ class PythonBootApplication:
         version: str = "0.1.0",
         scan_packages: tuple[str, ...] | None = None,
         config_dir: str | Path | None = None,
+        env_dir: str | Path | None = None,
         auto_configure: bool = True,
         exclude_auto_configurations: tuple[str, ...] | None = None,
         exclude: tuple[type, ...] | None = None,
@@ -123,6 +133,7 @@ class PythonBootApplication:
         self.app: FastAPI = create_app(
             title=title, version=version, scan_packages=packages,
             exclude_modules=(module_name,), config_dir=config_dir,
+            env_dir=env_dir,
             auto_configure=auto_configure,
             exclude_auto_configurations=(
                 exclude_auto_configurations if exclude_auto_configurations is not None

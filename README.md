@@ -11,6 +11,8 @@
 - `starters/pythonboot-starter-sqlalchemy`：SQLAlchemy ORM 启动依赖。
 - `modules/pythonboot-sqlalchemy`：原生 Engine、Session 工厂及配置属性集成。
 - `examples/sqlalchemy`：SQLite 异步 ORM、工厂注入和显式提交示例。
+- `starters/pythonboot-starter-auth`：鉴权启动依赖，Web/Redis extras 按需选择。
+- `modules/pythonboot-auth`：登录会话、动态权限、序列化与可选适配实现。
 - `starters/pythonboot-starter-redis`：Redis 启动依赖。
 - `modules/pythonboot-redis`：redis-py 客户端、配置属性、静态工具与分布式锁。
 - `examples/redis`：异步客户端注入、静态工具和分布式锁示例。
@@ -28,6 +30,11 @@
 Web 接口从 `pythonboot_web` 导入。本地工作区使用 `uv sync --all-packages` 同步。
 
 ## SQLAlchemy ORM
+
+支持按配置启用逻辑删除，默认关闭。`soft_delete` 可指定字段及未删除／已删除值；
+模型继承 `SoftDeleteMixin`，同步／异步默认工厂提供查询过滤和实例软删除。
+Logical deletion is opt-in, with configurable field and active/deleted values; marked models
+support query filtering and instance deletion in sync and async Sessions.
 
 安装 `pythonboot-starter-sqlalchemy` 和所需数据库驱动，例如 `asyncpg`、`asyncmy` 或
 `aiosqlite`；本模块不默认安装任何驱动。依赖链为 Starter → `pythonboot-sqlalchemy`
@@ -77,7 +84,7 @@ ownership checks, and explicit renewal. No global client is cached; independent 
 ## 全量示例工程 / Complete example
 
 `example/` 是独立的 `src` 布局 PythonBoot 应用，也是 UV workspace 成员；
-安装三个 Starter 与应用自己的 `asyncpg`、`psycopg[binary]` PostgreSQL 驱动。
+安装四个 Starter 与应用自己的 `asyncpg`、`psycopg[binary]` PostgreSQL 驱动。
 默认资源通过 entry point 自动配置，同步资源通过应用 Bean 声明，覆盖 ORM CRUD、
 显式提交／回滚、Redis 全部工具和分布式锁，以及 Web 路由、异常、上下文、日期格式和文档。
 配置、Service、Controller、模型与启动入口分层维护，详见 [示例说明](example/README.md)。
@@ -114,3 +121,79 @@ The ORM packages export `PageQuery`, `Page[T]`, sync `paginate`, and async `apag
 Pagination defaults to page 1 and size 10; results also contain total and rows.
 Native Session ownership and transaction boundaries remain with callers.
 See [English pagination documentation](viteDocs/docs/en/sqlalchemy.md#pagination).
+
+`RedisUtil` / `AsyncRedisUtil` 的 set/get 默认 JSON 序列化对象（Pydantic、dataclass、普通对象），
+读取可用 `get(key, target_type=User)` 还原类型。`pythonboot.redis.serializer` 可配置 `json`、
+`raw` 或继承 `RedisSerializer` 的自定义类完整路径；应用序列化器 Bean 优先。
+仅工具 set/get 使用此配置，原生客户端和其他命令保持原生行为；切换格式需迁移旧值或使用新键。
+
+Utility set/get serialize objects as JSON by default, including Pydantic models, dataclasses, and ordinary objects.
+Use `get(key, target_type=User)` to reconstruct a type. Configure `pythonboot.redis.serializer` as
+`json`, `raw`, or a fully qualified `RedisSerializer` subclass; application serializer Beans override defaults.
+Native clients and other commands retain native behavior. Migrate existing values or use new keys when switching formats.
+
+## Auth 鉴权 / Authentication
+
+权限和角色检查先校验登录；未绑定上下文且未传 Token 时抛出 NotLoginError，消息仅为“Not logged in”，原因通过 reason 属性获取。
+Permission and role checks validate login first. Missing context and token raise NotLoginError with the message `Not logged in`; reason remains a separate attribute.
+
+安装 `pythonboot-starter-auth`，导入 `pythonboot_starter_auth`；实现模块为
+`pythonboot-auth` / `pythonboot_auth`。基础包不依赖 Web/Redis，默认同步内存会话，
+按需安装 `pythonboot-starter-auth[web,redis]`，通过 YAML 的 `pythonboot.auth` 选择模式与存储。
+依赖链为 Starter → pythonboot-auth → pythonboot；可选能力依赖现有 Web/Redis 实现包。
+
+支持账号与 Token Session、随机 Token、绝对/空闲有效期、多端与同端策略、注销/踢人、
+StpInterface 动态角色权限、`*` 通配权限、AND/OR、同步/异步服务与装饰器。
+默认 JSON 自动序列化 Pydantic、dataclass 和普通对象，通过 `session.get("user", target_type=User)`
+还原类型，支持泛型集合与声明的嵌套模型；可注册自定义 SessionSerializer，业务推荐 `autowired()` 属性注入。
+Redis 复用现有客户端，以 CAS/Lua 原子更新，不自动降级或本地缓存。
+
+应用自行注册 `pythonboot_auth.web.AuthInterceptor`、配置保护/放行路径，
+自行处理 NotLoginError、NotPermissionError、NotRoleError 等异常；框架不修改返回结构。
+全量示例 `/auth/*` 使用异步 Redis，`/sync/auth/*` 使用同步内存，登录接口显式放行。
+详见 [中文](viteDocs/docs/zh/auth.md)、[English](viteDocs/docs/en/auth.md)。
+
+The Auth Starter provides server-side authentication with shared account sessions and individual token
+sessions, dynamic StpInterface role/permission providers, wildcard checks and replaceable JSON serialization.
+Session set accepts model/dataclass objects directly; get(target_type=User) reconstructs their declared types
+and supports typed collections without storing executable class metadata.
+Web and Redis are optional extras. Applications explicitly install interceptors, verify credentials, and
+handle typed errors; no response envelope is enforced. The complete example includes async Redis and
+sync memory authentication, with application-owned exception advice.
+
+
+当前 FastAPI 应用自动注册为名为 `fastapiApp` 的单例 Bean，可通过 `app: FastAPI = autowired()` 注入，
+或在容器启动后通过 `ContextUtil.get_bean(FastAPI)` 获取。每个应用使用独立实例；
+`configure()` 执行时容器尚未启动，请直接使用传入的 `app`。禁用自动配置时此 Bean 仍会注册。
+
+
+The current FastAPI application is registered as the singleton Bean `fastapiApp`.
+Inject it with `app: FastAPI = autowired()` or obtain it with `ContextUtil.get_bean(FastAPI)` after container startup.
+Each application has its own instance. The container has not started during `configure()`; use its `app` argument there.
+The Bean is also registered when `auto_configure=False`.
+
+
+## 全局校验开关 / Global check switch
+
+```yaml
+pythonboot:
+  auth:
+    enabled: true
+    check_enabled: false
+```
+
+`check_enabled` 默认 true，可用 `PYTHONBOOT_AUTH_CHECK_ENABLED=false` 关闭。
+关闭后同步／异步登录、权限、角色校验及对应装饰器、静态工具、Web 拦截器直接跳过，
+不读取 Token 或会话存储，也不要求权限提供者；`check_login()` 返回 None。
+拦截器自动 CSRF 校验一并跳过；显式 check_csrf、当前用户和 Session 操作仍要求真实登录。
+`enabled` 仅控制自动装配；自定义服务应传入同一 AuthProperties 或保留开关的副本。
+
+Set `pythonboot.auth.check_enabled: false` or `PYTHONBOOT_AUTH_CHECK_ENABLED=false` to bypass
+sync/async login, permission and role checks, decorators, utilities, and the Web interceptor.
+Checks require no token, provider or storage access; check_login returns None. The interceptor also skips
+automatic CSRF checks. Explicit CSRF checks, identity and session operations still require real authentication.
+The default is true. The existing enabled setting controls auto-configuration only.
+Custom services must receive properties preserving this switch.
+
+关闭鉴权校验时，服务创建会以 ERROR 级别输出醒目的安全警告及恢复配置提示。
+Disabling authentication checks emits a prominent ERROR-level security warning when the service is created, including instructions to restore checks.

@@ -1,5 +1,6 @@
 """Conditional native Redis clients and application-owned pool lifecycle."""
 
+from importlib import import_module
 import logging
 
 from redis import ConnectionPool
@@ -8,6 +9,7 @@ from redis.asyncio import ConnectionPool as AsyncConnectionPool
 from pythonboot import auto_configuration, bean, conditional_on_missing_bean, conditional_on_property
 from pythonboot_redis.client import AsyncRedisClient, RedisClient
 from pythonboot_redis.properties import RedisProperties
+from pythonboot_redis.serialization import JsonRedisSerializer, RawRedisSerializer, RedisSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +18,30 @@ logger = logging.getLogger(__name__)
 @conditional_on_property("pythonboot.redis.enabled", having_value=True, match_if_missing=True)
 class RedisPropertiesAutoConfiguration:
     """Register typed Redis connection configuration before resource factories."""
+
+
+@auto_configuration(order=2950)
+@conditional_on_property("pythonboot.redis.enabled", having_value=True, match_if_missing=True)
+class RedisSerializerAutoConfiguration:
+    """Register a codec unless the application supplies its own serializer Bean."""
+
+    @bean(name="redisSerializer")
+    @conditional_on_missing_bean(RedisSerializer, "redisSerializer")
+    def serializer(self, properties: RedisProperties) -> RedisSerializer:
+        selection = properties.serializer
+        if selection == "json":
+            serializer_type = JsonRedisSerializer
+        elif selection == "raw":
+            serializer_type = RawRedisSerializer
+        else:
+            module_name, separator, class_name = selection.rpartition(".")
+            if not separator:
+                raise ValueError("Redis serializer must be json, raw, or a fully qualified class path")
+            serializer_type = getattr(import_module(module_name), class_name)
+            if not isinstance(serializer_type, type) or not issubclass(serializer_type, RedisSerializer):
+                raise TypeError("Configured Redis serializer must subclass RedisSerializer")
+        logger.info("Creating Redis utility serializer of type %s.", serializer_type.__name__)
+        return serializer_type()
 
 
 @auto_configuration(order=3000)

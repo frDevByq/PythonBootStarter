@@ -8,6 +8,8 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
+from pythonboot_sqlalchemy.soft_delete import SoftDeleteSession
+
 T = TypeVar("T")
 R = TypeVar("R")
 
@@ -37,7 +39,9 @@ def _queries(statement: Select[Any], query: PageQuery) -> tuple[Select[Any], Sel
     if len(statement.column_descriptions) != 1:
         raise ValueError("Pagination requires exactly one selected entity or scalar column")
     unpaged = statement.limit(None).offset(None).fetch(None)
-    count = select(func.count()).select_from(unpaged.order_by(None).subquery())
+    count = select(func.count()).select_from(unpaged.order_by(None).subquery()).execution_options(
+        **statement.get_execution_options(),
+    )
     rows = unpaged.offset((query.page - 1) * query.pageSize).limit(query.pageSize)
     return count, rows
 
@@ -62,6 +66,8 @@ def paginate(
 ) -> Page[Any]:
     """Execute count and rows in the caller's Session without committing or closing it."""
     options = PageQuery.model_validate(query.model_dump() if query is not None else {})
+    if isinstance(session, SoftDeleteSession):
+        statement = session.filter_select(statement)
     count, rows_query = _queries(statement, options)
     total = session.scalar(count)
     rows = session.scalars(rows_query).all()
@@ -91,6 +97,8 @@ async def apaginate(
 ) -> Page[Any]:
     """Await count and rows in the caller's AsyncSession without transaction ownership."""
     options = PageQuery.model_validate(query.model_dump() if query is not None else {})
+    if isinstance(session.sync_session, SoftDeleteSession):
+        statement = session.sync_session.filter_select(statement)
     count, rows_query = _queries(statement, options)
     total = await session.scalar(count)
     rows = (await session.scalars(rows_query)).all()

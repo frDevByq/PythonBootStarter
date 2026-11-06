@@ -34,6 +34,10 @@ PythonBootStarter/
       pyproject.toml                     SQLAlchemy 实现包依赖和自动配置入口
       README.md                          配置与原生 ORM 用法
       src/pythonboot_sqlalchemy/         Engine、Session 工厂和配置属性
+    pythonboot-auth/
+      pyproject.toml                     鉴权实现与可选 Web/Redis 依赖
+      README.md                          登录、Session、权限及序列化说明
+      src/pythonboot_auth/               鉴权服务、存储和可选适配
     pythonboot-redis/
       pyproject.toml                     redis-py 依赖和自动配置入口
       README.md                          原生客户端、静态工具和锁用法
@@ -47,12 +51,16 @@ PythonBootStarter/
       pyproject.toml                     ORM 启动依赖聚合
       README.md                          安装和入口说明
       src/pythonboot_starter_sqlalchemy/ 公共工厂和配置类型导出
+    pythonboot-starter-auth/
+      pyproject.toml                     鉴权依赖聚合与可选 extras
+      README.md                          安装及显式拦截器接入
+      src/pythonboot_starter_auth/        鉴权公共入口导出
     pythonboot-starter-redis/
       pyproject.toml                     Redis 启动依赖聚合
       README.md                          安装和入口说明
       src/pythonboot_starter_redis/      公共客户端、配置和工具导出
   example/                             全量 Starter 标准应用（src 布局）
-    pyproject.toml                     三个 Starter 与 PostgreSQL 驱动依赖
+    pyproject.toml                     四个 Starter 与 PostgreSQL 驱动依赖
     compose.yml                        本地 PostgreSQL 和 Redis 服务
     src/starter_example/               启动类、配置、Controller、Service 和模型
   examples/sqlalchemy/                  原生 ORM 显式提交示例
@@ -85,6 +93,7 @@ Python 版本要求：>=3.12。使用 UV 管理依赖；各项目的 `pyproject.
 | pythonboot-starter-example | 运行时 | pythonboot-starter-web | >=0.1.0,<0.2 | 完整 Web 应用与 HTTP 演示 |
 | pythonboot-starter-example | 运行时 | pythonboot-starter-sqlalchemy | >=0.1.0,<0.2 | 同步／异步原生 ORM 与显式提交／回滚 |
 | pythonboot-starter-example | 运行时 | pythonboot-starter-redis | >=0.1.0,<0.2 | 同步／异步 Redis 全部工具与原生锁 |
+| pythonboot-starter-example | 运行时 | pythonboot-starter-auth[web,redis] | >=0.1.0,<0.2 | 同步／异步鉴权、Session、动态权限与显式 Web 拦截器 |
 | pythonboot-starter-example | 运行时 | asyncpg | >=0.30,<1 | PostgreSQL 异步驱动 |
 | pythonboot-starter-example | 运行时 | psycopg[binary] | >=3.2,<4 | PostgreSQL 同步驱动与二进制扩展 |
 | pythonboot-starter-example | 构建 | hatchling | >=1.27,<2 | 安装 src 布局的示例应用 |
@@ -108,6 +117,16 @@ Python 版本要求：>=3.12。使用 UV 管理依赖；各项目的 `pyproject.
 | pythonboot-redis | 构建 | hatchling | >=1.27,<2 | 构建 src 布局的 Redis 实现包 |
 | pythonboot-starter-redis | 运行时 | pythonboot-redis | >=0.1.0,<0.2 | 聚合 Redis 实现与传递依赖 |
 | pythonboot-starter-redis | 构建 | hatchling | >=1.27,<2 | 构建独立 Redis Starter 分发包 |
+| pythonboot-auth | 运行时 | pythonboot | >=0.1.0,<0.2 | 容器、配置属性、自动配置及当前应用上下文 |
+| pythonboot-auth | 运行时 | pydantic | >=2.10,<3 | 嵌套鉴权配置与参数校验 |
+| pythonboot-auth | 运行时 | pydantic-settings | >=2.7,<3 | 鉴权配置属性及环境变量覆盖 |
+| pythonboot-auth | 可选 web | pythonboot-web | >=0.1.0,<0.2 | 可选 Web 依赖与应用显式拦截器接入 |
+| pythonboot-auth | 可选 redis | pythonboot-redis | >=0.1.0,<0.2 | 复用受管同步／异步 Redis 客户端 |
+| pythonboot-auth | 构建 | hatchling | >=1.27,<2 | 构建独立鉴权实现包 |
+| pythonboot-starter-auth | 运行时 | pythonboot-auth | >=0.1.0,<0.2 | 聚合鉴权实现与公共接口 |
+| pythonboot-starter-auth | 可选 web | pythonboot-auth[web] | >=0.1.0,<0.2 | 聚合 Web 可选依赖 |
+| pythonboot-starter-auth | 可选 redis | pythonboot-auth[redis] | >=0.1.0,<0.2 | 聚合 Redis 可选依赖 |
+| pythonboot-starter-auth | 构建 | hatchling | >=1.27,<2 | 构建独立鉴权 Starter 分发包 |
 
 - 新增、删除、升级依赖或变更 extras、依赖组时，在同一次修改中更新对应
   `pyproject.toml`、本文件的清单和用途说明。
@@ -179,6 +198,7 @@ Python 版本要求：>=3.12。使用 UV 管理依赖；各项目的 `pyproject.
 
 - `RedisClient` / `AsyncRedisClient` 是 redis-py 原生客户端类别名，不实现 RedisTemplate。
 - 默认同步模式；enabled 和 mode 通过 YAML 选择，其他属性允许环境变量覆盖。
+- RedisUtil / AsyncRedisUtil 的 set/get 默认 JSON 对象序列化，通过 serializer 配置 json、raw 或自定义 RedisSerializer 类完整路径；应用序列化器 Bean 优先。get 可通过 target_type 还原对象。原生客户端及其他命令保持原生行为，切换格式须迁移旧值或使用新键。
 - `RedisUtil` / `AsyncRedisUtil` 通过 ContextUtil 获取当前容器客户端，不缓存全局客户端。
   独立任务必须绑定容器；多客户端通过名称、限定符或 primary 选择，歧义明确报错。
 - 默认池与客户端接入容器关闭，异步清理必须 await；自定义资源由提供方声明关闭责任。
@@ -188,6 +208,14 @@ Python 版本要求：>=3.12。使用 UV 管理依赖；各项目的 `pyproject.
 - 不提供自动续期或跨故障转移严格互斥；显式续期，不吞掉丢失所有权异常。
 
 ## 自动配置与事务适配
+
+- 逻辑删除默认关闭，通过 `pythonboot.sqlalchemy.soft_delete` 配置 `enabled`、`field`、
+  `active_value` 和 `deleted_value`；模型显式继承 `SoftDeleteMixin` 并声明对应字段。
+  关联模型不继承标记，不添加逻辑删除字段。启用时默认工厂使用同步／异步逻辑删除 Session，
+  自定义工厂须显式选择对应 Session 类及配置；不注册全局 Session 事件。
+  查询与分页过滤未删除值，实例删除在 flush 时更新标记，业务仍显式提交／回滚。
+  查询全部使用 `include_deleted=True`，物理删除使用 `hard_delete`；逻辑删除模型的批量
+  ORM DELETE 必须显式选择物理删除，否则报错，批量逻辑删除使用显式 UPDATE。
 
 - 当前 SQLAlchemy Starter 采用原生 ORM 和显式提交，不提供 Mapper 或核心事务管理器适配。
   业务注入原生 Session 工厂并创建作用域，显式调用 commit，需要复用失败 Session 时 rollback。
@@ -252,3 +280,23 @@ Python 版本要求：>=3.12。使用 UV 管理依赖；各项目的 `pyproject.
 - 示例是框架用法演示，不是单元测试目录；Web 启动类继承 `PythonBootApplication`。
 - 用户明确授权验证后，再按变更范围执行相关测试；不得擅自运行。
 - 涉及同级核心仓库的修改，遵守该仓库的 `AGENTS.md`，完成后分别执行 `git add .`。
+
+## Auth 模块约定
+
+- 基础鉴权不依赖 Web/Redis；可选模块不从顶层公共接口或自动配置入口提前导入。
+- Web 拦截器由应用显式注册并配置保护/放行路径；Starter 不自动保护接口、不添加异常处理器。
+- 鉴权失败只抛特定异常，不修改响应结构；存储故障不能伪装成未登录或回退内存。
+- 账号 Session 与 Token Session 分离；用户扩展值默认 JSON，自动序列化 Pydantic、dataclass 和普通对象；
+  get 支持 target_type 显式还原模型、dataclass 和泛型集合，不从存储内容导入类型。
+  自定义 SessionSerializer Bean 接口保持兼容；缺失键返回原 default，null 保持 None，转换失败抛 SessionSerializationError。
+- StpInterface / AsyncStpInterface 由应用提供动态角色和权限，框架不维护用户/角色表或默认缓存权限。
+- 权限仅授权值支持大小写敏感的 `*` 全字符串通配，要求值为具体权限码，角色精确匹配。
+- 同步与异步 API 分离；静态工具通过 ContextUtil 解析当前应用，不缓存全局服务或身份。
+- Redis 复用现有客户端，账号状态与 Token 索引通过 CAS/Lua 原子更新，注销后旧句柄不得写活。
+- Token/CSRF Token 使用高强度随机值，存储只保留摘要，不进入日志；Cookie 写操作校验 CSRF。
+- 完整示例同时维护异步 Redis 与同步内存路径、凭据验证、Session 数据、权限/角色及应用异常处理。
+
+- `pythonboot.auth.check_enabled` 默认 true；false 时同步／异步登录、权限、角色校验、
+  装饰器与 Web 拦截器跳过，check_login 返回 None，不访问存储或权限提供者。
+  拦截器自动 CSRF 一并跳过，显式 CSRF 校验、当前身份及 Session 操作仍要求真实登录。
+  `enabled` 仅控制自动装配；自定义服务需保留 check_enabled 配置，不创建虚拟身份。

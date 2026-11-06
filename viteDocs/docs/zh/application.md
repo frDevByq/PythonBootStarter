@@ -46,7 +46,7 @@ app = create_app(
 )
 ```
 
-`title`、`version` 与剩余 `**options` 传给 `FastAPI`；框架接管 `docs_url`、`redoc_url` 与 `openapi_url`，使用 YAML 的文档设置。`auto_configure=False` 禁用所有自动配置。`exclude_auto_configurations` 接受入口名或自动配置的全限定名。
+`title`、`version` 与剩余 `**options` 传给 `FastAPI`；框架接管 `docs_url`、`redoc_url` 与 `openapi_url`，使用 YAML 的文档设置。默认文档界面为 Scalar，可通过 `pythonboot.docs.provider` 覆盖。`auto_configure=False` 禁用所有自动配置。`exclude_auto_configurations` 接受入口名或自动配置的全限定名。
 
 ## Spring Boot 对照
 
@@ -60,3 +60,8 @@ public class Application {
 ```
 
 PythonBoot 的 `@pythonboot_application` + `PythonBootApplication` 对应 `@SpringBootApplication`；但其运行时 Web 容器始终是 FastAPI/ASGI。
+
+
+当前 FastAPI 应用自动注册为名为 `fastapiApp` 的单例 Bean，可通过 `app: FastAPI = autowired()` 注入，
+或在容器启动后通过 `ContextUtil.get_bean(FastAPI)` 获取。每个应用使用独立实例；
+`configure()` 执行时容器尚未启动，请直接使用传入的 `app`。禁用自动配置时此 Bean 仍会注册。

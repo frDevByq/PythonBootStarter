@@ -22,3 +22,9 @@ uv add pythonboot-starter-web
 Start with [Installation and modules](/en/web-starter.html).
 
 
+
+Redis utility set/get support JSON objects by default with configurable raw or custom codecs; [configuration and usage](/en/redis.html#object-serialization).
+
+[Auth Starter](/en/auth.html) provides sync/async authentication, account and token sessions,
+dynamic StpInterface providers, wildcard permissions, replaceable JSON serialization and optional Redis.
+Applications explicitly register Web interceptors and handle typed exceptions themselves.

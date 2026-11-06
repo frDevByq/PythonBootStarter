@@ -1,5 +1,11 @@
 # pythonboot-sqlalchemy
 
+逻辑删除默认关闭，通过 `pythonboot.sqlalchemy.soft_delete` 设置 `enabled`、`field`、
+`active_value`、`deleted_value`。模型显式继承 `SoftDeleteMixin` 并声明字段；开启后默认工厂
+支持查询过滤、实例软删除和显式物理删除，仍需业务提交。自定义工厂须指定相应 Session 类。
+Logical deletion is disabled by default and supports configurable field and marker values.
+Use `SoftDeleteMixin` and the configured sync/async Sessions; explicit commits remain required.
+
 PythonBoot 的 SQLAlchemy 原生 ORM 实现包。分发名为 `pythonboot-sqlalchemy`，
 导入名为 `pythonboot_sqlalchemy`；应用推荐安装聚合包 `pythonboot-starter-sqlalchemy`。
 

@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pythonboot-starter-auth"
+version = "0.1.0"
+description = "Authentication starter dependencies for PythonBoot applications"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["pythonboot-auth>=0.1.0,<0.2"]
+
+[project.optional-dependencies]
+web = ["pythonboot-auth[web]>=0.1.0,<0.2"]
+redis = ["pythonboot-auth[redis]>=0.1.0,<0.2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pythonboot_starter_auth"]

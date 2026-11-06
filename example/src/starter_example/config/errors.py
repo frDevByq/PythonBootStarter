@@ -5,12 +5,27 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from pythonboot_starter_auth import AuthError, AuthStorageError, CsrfError, NotLoginError, NotPermissionError, NotRoleError
 from pythonboot_web import controller_advise, exception_handler
 from starter_example.domain.common import BaseResult, UserNotFoundError
 
 
 @controller_advise
 class ErrorAdvice:
+    @exception_handler(NotLoginError)
+    def not_logged_in(self, request: Request, error: NotLoginError) -> JSONResponse:
+        return self.failure(str(error), 401)
+
+    @exception_handler(NotPermissionError)
+    @exception_handler(NotRoleError)
+    @exception_handler(CsrfError)
+    def forbidden(self, request: Request, error: AuthError) -> JSONResponse:
+        return self.failure(str(error), 403)
+
+    @exception_handler(AuthStorageError)
+    def auth_unavailable(self, request: Request, error: AuthStorageError) -> JSONResponse:
+        return self.failure("Authentication storage unavailable", 503)
+
     @exception_handler(UserNotFoundError)
     def user_missing(self, request: Request, error: UserNotFoundError) -> JSONResponse:
         return self.failure(str(error), 404)

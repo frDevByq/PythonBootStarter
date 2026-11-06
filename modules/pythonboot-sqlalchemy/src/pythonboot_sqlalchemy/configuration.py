@@ -11,6 +11,7 @@ from pythonboot import (
 from pythonboot_sqlalchemy.engine import database_url, engine_options
 from pythonboot_sqlalchemy.factories import AsyncSessionFactory, SessionFactory
 from pythonboot_sqlalchemy.properties import DataSourceProperties, SqlAlchemyProperties
+from pythonboot_sqlalchemy.soft_delete import AsyncSoftDeleteSession, SoftDeleteSession
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,11 @@ class SqlAlchemySyncSessionAutoConfiguration:
     @conditional_on_missing_bean(SessionFactory, "sqlAlchemySessionFactory")
     def session_factory(self, engine: Engine, properties: SqlAlchemyProperties) -> SessionFactory:
         logger.info("Creating synchronous SQLAlchemy session factory.")
-        return SessionFactory(bind=engine, **properties.session.model_dump())
+        options = properties.session.model_dump()
+        if properties.soft_delete.enabled:
+            options.update(class_=SoftDeleteSession, soft_delete=properties.soft_delete)
+            logger.info("SQLAlchemy logical deletion enabled for field=%s.", properties.soft_delete.field)
+        return SessionFactory(bind=engine, **options)
 
 
 @auto_configuration(order=2100)
@@ -74,4 +79,8 @@ class SqlAlchemyAsyncSessionAutoConfiguration:
     @conditional_on_missing_bean(AsyncSessionFactory, "sqlAlchemyAsyncSessionFactory")
     def session_factory(self, engine: AsyncEngine, properties: SqlAlchemyProperties) -> AsyncSessionFactory:
         logger.info("Creating asynchronous SQLAlchemy session factory.")
-        return AsyncSessionFactory(bind=engine, **properties.session.model_dump())
+        options = properties.session.model_dump()
+        if properties.soft_delete.enabled:
+            options.update(class_=AsyncSoftDeleteSession, soft_delete=properties.soft_delete)
+            logger.info("SQLAlchemy logical deletion enabled for field=%s.", properties.soft_delete.field)
+        return AsyncSessionFactory(bind=engine, **options)

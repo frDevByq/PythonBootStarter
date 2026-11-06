@@ -28,6 +28,8 @@ class RedisService:
             results["named_client"] = client is self.redis_client
             results["set"] = await AsyncRedisUtil.set(key, "hello", ex=60, nx=True)
             results["get"] = await AsyncRedisUtil.get(key)
+            results["set_object"] = await AsyncRedisUtil.set(key, {"id": 1, "name": "Alice"}, ex=60)
+            results["get_object"] = await AsyncRedisUtil.get(key)
             results["exists"] = await AsyncRedisUtil.exists(key)
             results["expire"] = await AsyncRedisUtil.expire(key, 120)
             results["ttl"] = await AsyncRedisUtil.ttl(key)

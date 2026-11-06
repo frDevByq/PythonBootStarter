@@ -1,5 +1,10 @@
 # pythonboot-starter-sqlalchemy
 
+重导出 `SoftDeleteMixin`、`SoftDeleteProperties`、`SoftDeleteSession`、`AsyncSoftDeleteSession`。
+逻辑删除通过配置启用，默认关闭；字段名和未删除／已删除值可配置。
+Exports include the configurable logical-deletion model marker, settings, and sync/async Sessions.
+Logical deletion is disabled by default; see the SQLAlchemy documentation for opt-in usage.
+
 SQLAlchemy ORM 的启动依赖聚合包，依赖 `pythonboot-sqlalchemy`，传递引入核心
 `pythonboot` 和 `sqlalchemy[asyncio]`。实际 ORM 集成和自动配置由实现包承担。
 

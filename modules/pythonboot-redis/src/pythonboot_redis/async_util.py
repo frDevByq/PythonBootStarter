@@ -5,12 +5,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import timedelta
 from math import isfinite
+from typing import Any
 
 from redis.asyncio.lock import Lock
 
 from pythonboot import ContextUtil
 from pythonboot_redis.client import AsyncRedisClient, RedisKey, RedisResult, RedisValue
 from pythonboot_redis.util import validate_lock_options
+from pythonboot_redis.serialization import RedisSerializer, restore_value
 
 
 class AsyncRedisUtil:
@@ -21,17 +23,21 @@ class AsyncRedisUtil:
         return await ContextUtil.aget_bean(AsyncRedisClient, name=name, qualifier=qualifier)
 
     @staticmethod
-    async def get(key: RedisKey, *, name: str | None = None) -> RedisResult | None:
-        return await (await AsyncRedisUtil.get_client(name=name)).get(key)
+    async def get[T](key: RedisKey, *, target_type: type[T] | None = None, name: str | None = None) -> T | Any:
+        serializer = await ContextUtil.aget_bean(RedisSerializer)
+        value = await (await AsyncRedisUtil.get_client(name=name)).get(key)
+        return restore_value(serializer.loads(value), target_type) if value is not None else None
 
     @staticmethod
     async def set(
-        key: RedisKey, value: RedisValue, *, ex: int | timedelta | None = None,
+        key: RedisKey, value: Any, *, ex: int | timedelta | None = None,
         px: int | timedelta | None = None, nx: bool = False, xx: bool = False,
         keepttl: bool = False, name: str | None = None,
     ) -> bool | None:
+        serializer = await ContextUtil.aget_bean(RedisSerializer)
+        encoded = serializer.dumps(value)
         client = await AsyncRedisUtil.get_client(name=name)
-        return await client.set(key, value, ex=ex, px=px, nx=nx, xx=xx, keepttl=keepttl)
+        return await client.set(key, encoded, ex=ex, px=px, nx=nx, xx=xx, keepttl=keepttl)
 
     @staticmethod
     async def delete(*keys: RedisKey, name: str | None = None) -> int:

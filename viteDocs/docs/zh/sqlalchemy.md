@@ -1,5 +1,70 @@
 # SQLAlchemy Starter
 
+## 逻辑删除
+
+逻辑删除默认关闭；配置启用后，默认 Session 工厂使用 `SoftDeleteSession` 或
+`AsyncSoftDeleteSession`。事务仍由业务显式提交／回滚。
+
+```yaml
+pythonboot:
+  sqlalchemy:
+    soft_delete:
+      enabled: true
+      field: is_delete
+      active_value: false
+      deleted_value: true
+```
+
+`field` 为 ORM 属性名，默认 `is_delete`；两个标记值支持布尔、整数或字符串，必须不同。
+例如整数标记可设 `field: deleted`、`active_value: 0`、`deleted_value: 1`。
+模型须继承 `SoftDeleteMixin` 并自行声明配置字段；Mixin 不添加任何列：
+
+```python
+from sqlalchemy import Boolean, false
+from sqlalchemy.orm import Mapped, mapped_column
+from pythonboot_sqlalchemy import SoftDeleteMixin
+
+class User(SoftDeleteMixin, Base):
+    __tablename__ = "users"
+    # Declare the primary key and other application fields here.
+    is_delete: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false(), comment="Deletion flag",
+    )
+```
+
+关联表不继承 Mixin，也不声明逻辑删除列。字段的类型及数据库默认值必须匹配配置；
+Starter 不自动建表或迁移。已加载实体不会因更改配置或查询条件自动从身份映射移除。
+
+默认 ORM Select、关系加载和 `get()` 过滤未删除值，`paginate` / `apaginate` 的总数与数据
+也应用过滤。`session.delete(entity)` 在 flush 时改为更新标记，异步使用
+`await session.delete(entity)`；最后仍须显式 `commit()`。原生关系级联仍适用，
+关联模型及非软删除模型可能物理删除；数据库级联只由实际物理 DELETE 触发。
+
+```python
+async with session_factory() as session:
+    user = await session.get(User, user_id)
+    if user is not None:
+        await session.delete(user)
+        await session.commit()
+
+async with session_factory() as session:
+    statement = select(User).execution_options(include_deleted=True)
+    users = (await session.scalars(statement)).all()
+    # Restore a record by setting its configured field to active_value and committing.
+```
+
+包含已删除记录也可用 `get(..., execution_options={"include_deleted": True})`。
+实例物理删除使用 `session.hard_delete(entity)`，异步需 await；其 ORM 删除级联同样物理删除。
+软删除模型的批量 ORM `delete(User)` 默认明确报错，物理删除须加
+`.execution_options(hard_delete=True)`。批量逻辑删除使用显式
+`update(User).where(...).values(is_delete=True)` 并提交。Core SQL、原始 SQL 和数据库级联
+不在自动拦截范围内；批量 UPDATE 的筛选条件由业务显式指定。
+
+应用自定义 Session 工厂需显式传递 `class_=SoftDeleteSession` 或
+`class_=AsyncSoftDeleteSession`，以及 `soft_delete=settings.soft_delete`。
+事件仅注册到启用的 Session 实例，不改变第三方 Session。
+独立示例见 `examples/sqlalchemy/soft_delete_example.py`。
+
 ## 安装与职责
 
 ```bash

@@ -6,6 +6,8 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
 
+from pythonboot_auth.web import AuthInterceptor
+from pythonboot_starter_auth import AsyncAuthService, AuthService
 from pythonboot_starter_web import PythonBootApplication, pythonboot_application
 
 
@@ -24,6 +26,16 @@ class Application(PythonBootApplication):
     """Scan the application package and discover installed Starter entry points."""
 
     def configure(self, app: FastAPI) -> None:
+        def auth_service(request: Request) -> AuthService | AsyncAuthService:
+            if request.url.path.startswith("/sync/auth/"):
+                return request.app.state.context.get_bean(AuthService, name="exampleSyncAuthService")
+            return request.app.state.context.get_bean(AsyncAuthService)
+
+        AuthInterceptor(
+            include=("/auth/*", "/sync/auth/*"),
+            exclude=("/auth/login", "/sync/auth/login"),
+            service_resolver=auth_service,
+        ).install(app)
         @app.middleware("http")
         async def application_header(
             request: Request, call_next: Callable[[Request], Awaitable[Response]],

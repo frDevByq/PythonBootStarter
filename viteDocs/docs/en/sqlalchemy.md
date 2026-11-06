@@ -1,5 +1,67 @@
 # SQLAlchemy Starter
 
+## Logical deletion
+
+Logical deletion is disabled by default. Enable it through configuration; default factories then
+use `SoftDeleteSession` or `AsyncSoftDeleteSession`, retaining explicit commits and rollbacks.
+
+```yaml
+pythonboot:
+  sqlalchemy:
+    soft_delete:
+      enabled: true
+      field: is_delete
+      active_value: false
+      deleted_value: true
+```
+
+The field is a mapped attribute name. Values may be booleans, integers, or strings and must differ.
+For integer flags, use `field: deleted`, `active_value: 0`, and `deleted_value: 1`.
+Participating models inherit `SoftDeleteMixin` and declare their own configured column; the mixin
+adds no columns. Association models omit the mixin and deletion column. Match the column type
+and database default to the configuration and manage schema changes through application migrations.
+
+```python
+from sqlalchemy import Boolean, false
+from sqlalchemy.orm import Mapped, mapped_column
+from pythonboot_sqlalchemy import SoftDeleteMixin
+
+class User(SoftDeleteMixin, Base):
+    __tablename__ = "users"
+    # Declare the primary key and other application fields here.
+    is_delete: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false(), comment="Deletion flag",
+    )
+```
+
+ORM Selects, relationship loads, and `get()` filter active records. Pagination filters both count
+and rows. `Session.delete(instance)` becomes a marker update at flush; async deletion is awaited.
+Commit explicitly. Native ORM cascades still apply: association and unmarked models may be
+physically deleted. Database cascades require an actual physical DELETE.
+
+```python
+async with session_factory() as session:
+    user = await session.get(User, user_id)
+    if user is not None:
+        await session.delete(user)
+        await session.commit()
+
+async with session_factory() as session:
+    users = (await session.scalars(select(User).execution_options(include_deleted=True))).all()
+```
+
+Use `get(..., execution_options={"include_deleted": True})` to retrieve deleted records.
+Restore by assigning `active_value` and committing. Existing identity-map objects are not
+automatically evicted when query criteria change. Use `session.hard_delete(instance)` for physical
+deletion, awaiting it asynchronously; ORM delete cascades are also physical in this operation.
+Bulk ORM DELETE of marked models raises unless `.execution_options(hard_delete=True)` is explicit.
+Bulk logical deletion uses an explicit filtered UPDATE followed by commit. Core SQL, raw SQL,
+database cascades, and UPDATE predicates are outside automatic interception.
+
+Custom factories explicitly pass `class_=SoftDeleteSession` or `class_=AsyncSoftDeleteSession`
+and `soft_delete=settings.soft_delete`. Events belong to enabled Session instances only.
+See `examples/sqlalchemy/soft_delete_example.py` for deletion, restoration, and a custom factory.
+
 ## Installation and responsibilities
 
 ```bash

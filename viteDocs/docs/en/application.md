@@ -40,7 +40,7 @@ app = create_app(
 )
 ```
 
-`title`, `version`, and remaining `**options` go to `FastAPI`. PythonBoot owns the docs and OpenAPI URLs. `auto_configure=False` disables all auto-configurations; exclusions accept entry-point names or fully-qualified configuration names.
+`title`, `version`, and remaining `**options` go to `FastAPI`. PythonBoot owns the docs and OpenAPI URLs. Scalar is the default documentation UI and can be overridden with `pythonboot.docs.provider`. `auto_configure=False` disables all auto-configurations; exclusions accept entry-point names or fully-qualified configuration names.
 
 ## Spring Boot equivalent
 
@@ -55,3 +55,9 @@ class Application {
     }
 }
 ```
+
+
+The current FastAPI application is registered as the singleton Bean `fastapiApp`.
+Inject it with `app: FastAPI = autowired()` or obtain it with `ContextUtil.get_bean(FastAPI)` after container startup.
+Each application has its own instance. The container has not started during `configure()`; use its `app` argument there.
+The Bean is also registered when `auto_configure=False`.

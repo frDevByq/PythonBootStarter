@@ -5,12 +5,31 @@ example:
   name: PythonBoot Starter Example
   sync_database_url: postgresql+psycopg://pythonboot:pythonboot@127.0.0.1:15432/pythonboot_example
 
+example_auth:
+  accounts:
+    admin: admin-demo
+    reader: reader-demo
+
 pythonboot:
+  auth:
+    enabled: true
+    check_enabled: true
+    mode: async
+    storage: redis
+    session:
+      timeout: 86400
+      idle_timeout: 1800
+      concurrent: true
+      same_device_exclusive: true
+      max_sessions: 5
+    redis:
+      key_prefix: "starter-example:auth:"
+      client_name: redisAsyncClient
   web:
     datetime_format: "%Y-%m-%d %H:%M:%S"
   docs:
     enabled: true
-    provider: swagger
+    provider: scalar
     path: /docs
     openapi_path: /openapi.json
   datasource:
@@ -34,6 +53,7 @@ pythonboot:
     enabled: true
     mode: async
     url: redis://127.0.0.1:16379/0
+    serializer: json
     decode_responses: true
     max_connections: 20
     socket_timeout: 5

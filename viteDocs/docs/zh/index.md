@@ -22,3 +22,9 @@ Web 启动、Controller、路由、请求上下文和 FastAPI 集成由 `pythonb
 从 [安装与模块拆分](/zh/web-starter.html) 开始。
 
 
+
+Redis 工具 set/get 默认支持 JSON 对象，可配置原生模式或自定义序列化器；[配置与用法](/zh/redis.html#对象序列化)。
+
+[Auth Starter](/zh/auth.html) 提供同步／异步鉴权、账号与 Token Session、
+StpInterface 动态角色权限、通配匹配、可替换 JSON 序列化及可选 Redis。
+Web 拦截器由应用显式注册，失败仅抛异常，响应由应用处理。

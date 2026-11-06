@@ -2,6 +2,7 @@ pythonboot:
   redis:
     mode: async
     url: redis://localhost:6379/0
+    serializer: json
     decode_responses: true
     max_connections: 50
     socket_timeout: 5

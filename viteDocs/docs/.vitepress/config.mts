@@ -2,12 +2,16 @@ import { defineConfig } from 'vitepress'
 
 const zhSidebar = [
   { text: '开始使用', items: [{ text: '概览', link: '/zh/index.html' }] },
+  { text: 'Auth Starter', items: [
+    { text: '登录、Session 与权限', link: '/zh/auth.html' },
+  ] },
   { text: 'Redis Starter', items: [
     { text: '客户端、工具与分布式锁', link: '/zh/redis.html' },
   ] },
   { text: 'SQLAlchemy Starter', items: [
     { text: '配置、Session 与显式提交', link: '/zh/sqlalchemy.html' },
     { text: '分页查询', link: '/zh/sqlalchemy.html#分页查询' },
+    { text: '逻辑删除', link: '/zh/sqlalchemy.html#逻辑删除' },
   ] },
   { text: 'Web Starter', items: [
     { text: '安装与模块拆分', link: '/zh/web-starter.html' },
@@ -19,12 +23,16 @@ const zhSidebar = [
 
 const enSidebar = [
   { text: 'Getting started', items: [{ text: 'Overview', link: '/en/index.html' }] },
+  { text: 'Auth Starter', items: [
+    { text: 'Login, sessions and authorization', link: '/en/auth.html' },
+  ] },
   { text: 'Redis Starter', items: [
     { text: 'Clients, utilities and distributed locks', link: '/en/redis.html' },
   ] },
   { text: 'SQLAlchemy Starter', items: [
     { text: 'Configuration, Sessions and explicit commits', link: '/en/sqlalchemy.html' },
     { text: 'Pagination', link: '/en/sqlalchemy.html#pagination' },
+    { text: 'Logical deletion', link: '/en/sqlalchemy.html#logical-deletion' },
   ] },
   { text: 'Web Starter', items: [
     { text: 'Installation and modules', link: '/en/web-starter.html' },
