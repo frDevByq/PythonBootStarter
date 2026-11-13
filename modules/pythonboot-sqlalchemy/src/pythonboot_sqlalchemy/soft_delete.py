@@ -61,13 +61,27 @@ class SoftDeleteSession(Session):
         """Apply model criteria before a Select is wrapped in a pagination subquery."""
         if not self.soft_delete.enabled or statement.get_execution_options().get("include_deleted", False):
             return statement
+        return self._apply_filters(statement, self._selected_mappers(statement))
+
+    def filter_count(self, count: Select[Any], statement: Select[Any]) -> Select[Any]:
+        """Apply model criteria to a pagination COUNT wrapping ``statement`` as a subquery.
+
+        Loader criteria attached to the inner Select are not compiled once it becomes a
+        subquery, so the outer COUNT must carry them to match the filtered rows.
+        """
+        if not self.soft_delete.enabled or statement.get_execution_options().get("include_deleted", False):
+            return count
+        return self._apply_filters(count, self._selected_mappers(statement))
+
+    @staticmethod
+    def _selected_mappers(statement: Select[Any]) -> list[Any]:
         mappers = []
         for description in statement.column_descriptions:
             entity = description.get("entity")
             if entity is not None:
                 inspected = inspect(entity)
                 mappers.append(inspected.mapper if hasattr(inspected, "mapper") else inspected)
-        return self._apply_filters(statement, mappers)
+        return mappers
 
     def _convert_deletions(self, session: Session, flush_context: Any, instances: Any) -> None:
         settings = self.soft_delete

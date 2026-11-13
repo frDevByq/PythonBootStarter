@@ -69,6 +69,8 @@ def paginate(
     if isinstance(session, SoftDeleteSession):
         statement = session.filter_select(statement)
     count, rows_query = _queries(statement, options)
+    if isinstance(session, SoftDeleteSession):
+        count = session.filter_count(count, statement)
     total = session.scalar(count)
     rows = session.scalars(rows_query).all()
     return Page(
@@ -100,6 +102,8 @@ async def apaginate(
     if isinstance(session.sync_session, SoftDeleteSession):
         statement = session.sync_session.filter_select(statement)
     count, rows_query = _queries(statement, options)
+    if isinstance(session.sync_session, SoftDeleteSession):
+        count = session.sync_session.filter_count(count, statement)
     total = await session.scalar(count)
     rows = (await session.scalars(rows_query)).all()
     return Page(
